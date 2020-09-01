@@ -34,7 +34,6 @@
 #include "core/resource.h"
 
 class Animation : public Resource {
-
 	GDCLASS(Animation, Resource);
 	RES_BASE_EXTENSION("anim");
 
@@ -64,7 +63,6 @@ public:
 
 private:
 	struct Track {
-
 		TrackType type;
 		InterpolationType interpolation;
 		bool loop_wrap;
@@ -81,21 +79,21 @@ private:
 	};
 
 	struct Key {
-
 		float transition;
 		float time; // time in secs
-		Key() { transition = 1; }
+		Key() {
+			transition = 1;
+			time = 0;
+		}
 	};
 
 	// transform key holds either Vector3 or Quaternion
 	template <class T>
 	struct TKey : public Key {
-
 		T value;
 	};
 
 	struct TransformKey {
-
 		Vector3 loc;
 		Quat rot;
 		Vector3 scale;
@@ -104,8 +102,7 @@ private:
 	/* TRANSFORM TRACK */
 
 	struct TransformTrack : public Track {
-
-		Vector<TKey<TransformKey> > transforms;
+		Vector<TKey<TransformKey>> transforms;
 
 		TransformTrack() { type = TYPE_TRANSFORM; }
 	};
@@ -113,10 +110,9 @@ private:
 	/* PROPERTY VALUE TRACK */
 
 	struct ValueTrack : public Track {
-
 		UpdateMode update_mode;
 		bool update_on_seek;
-		Vector<TKey<Variant> > values;
+		Vector<TKey<Variant>> values;
 
 		ValueTrack() {
 			type = TYPE_VALUE;
@@ -127,13 +123,11 @@ private:
 	/* METHOD TRACK */
 
 	struct MethodKey : public Key {
-
 		StringName method;
 		Vector<Variant> params;
 	};
 
 	struct MethodTrack : public Track {
-
 		Vector<MethodKey> methods;
 		MethodTrack() { type = TYPE_METHOD; }
 	};
@@ -147,8 +141,7 @@ private:
 	};
 
 	struct BezierTrack : public Track {
-
-		Vector<TKey<BezierKey> > values;
+		Vector<TKey<BezierKey>> values;
 
 		BezierTrack() {
 			type = TYPE_BEZIER;
@@ -168,8 +161,7 @@ private:
 	};
 
 	struct AudioTrack : public Track {
-
-		Vector<TKey<AudioKey> > values;
+		Vector<TKey<AudioKey>> values;
 
 		AudioTrack() {
 			type = TYPE_AUDIO;
@@ -179,8 +171,7 @@ private:
 	/* AUDIO TRACK */
 
 	struct AnimationTrack : public Track {
-
-		Vector<TKey<StringName> > values;
+		Vector<TKey<StringName>> values;
 
 		AnimationTrack() {
 			type = TYPE_ANIMATION;
@@ -200,7 +191,7 @@ private:
 	int _insert(float p_time, T &p_keys, const V &p_value);
 
 	template <class K>
-	inline int _find(const Vector<K> &p_keys, float p_time) const;
+	inline int _find(const Vector<K> &p_keys, float p_time, bool reverse = false) const;
 
 	_FORCE_INLINE_ Animation::TransformKey _interpolate(const Animation::TransformKey &p_a, const Animation::TransformKey &p_b, float p_c) const;
 
@@ -216,7 +207,7 @@ private:
 	_FORCE_INLINE_ float _cubic_interpolate(const float &p_pre_a, const float &p_a, const float &p_b, const float &p_post_b, float p_c) const;
 
 	template <class T>
-	_FORCE_INLINE_ T _interpolate(const Vector<TKey<T> > &p_keys, float p_time, InterpolationType p_interp, bool p_loop_wrap, bool *p_ok) const;
+	_FORCE_INLINE_ T _interpolate(const Vector<TKey<T>> &p_keys, float p_time, InterpolationType p_interp, bool p_loop_wrap, bool *p_ok, bool reverse = false) const;
 
 	template <class T>
 	_FORCE_INLINE_ void _track_get_key_indices_in_range(const Vector<T> &p_array, float from_time, float to_time, List<int> *p_indices) const;
@@ -230,11 +221,11 @@ private:
 
 	// bind helpers
 private:
-	Array _transform_track_interpolate(int p_track, float p_time) const {
+	Array _transform_track_interpolate(int p_track, float p_time, bool reverse = false) const {
 		Vector3 loc;
 		Quat rot;
 		Vector3 scale;
-		transform_track_interpolate(p_track, p_time, &loc, &rot, &scale);
+		transform_track_interpolate(p_track, p_time, &loc, &rot, &scale, reverse);
 		Array ret;
 		ret.push_back(loc);
 		ret.push_back(rot);
@@ -242,26 +233,22 @@ private:
 		return ret;
 	}
 
-	PoolVector<int> _value_track_get_key_indices(int p_track, float p_time, float p_delta) const {
-
+	Vector<int> _value_track_get_key_indices(int p_track, float p_time, float p_delta) const {
 		List<int> idxs;
 		value_track_get_key_indices(p_track, p_time, p_delta, &idxs);
-		PoolVector<int> idxr;
+		Vector<int> idxr;
 
 		for (List<int>::Element *E = idxs.front(); E; E = E->next()) {
-
 			idxr.push_back(E->get());
 		}
 		return idxr;
 	}
-	PoolVector<int> _method_track_get_key_indices(int p_track, float p_time, float p_delta) const {
-
+	Vector<int> _method_track_get_key_indices(int p_track, float p_time, float p_delta) const {
 		List<int> idxs;
 		method_track_get_key_indices(p_track, p_time, p_delta, &idxs);
-		PoolVector<int> idxr;
+		Vector<int> idxr;
 
 		for (List<int>::Element *E = idxs.front(); E; E = E->next()) {
-
 			idxr.push_back(E->get());
 		}
 		return idxr;
@@ -304,7 +291,7 @@ public:
 	void track_set_key_transition(int p_track, int p_key_idx, float p_transition);
 	void track_set_key_value(int p_track, int p_key_idx, const Variant &p_value);
 	void track_set_key_time(int p_track, int p_key_idx, float p_time);
-	int track_find_key(int p_track, float p_time, bool p_exact = false) const;
+	int track_find_key(int p_track, float p_time, bool p_exact = false, bool reverse = false) const;
 	void track_remove_key(int p_track, int p_idx);
 	void track_remove_key_at_position(int p_track, float p_pos);
 	int track_get_key_count(int p_track) const;
@@ -342,7 +329,7 @@ public:
 	void track_set_interpolation_loop_wrap(int p_track, bool p_enable);
 	bool track_get_interpolation_loop_wrap(int p_track) const;
 
-	Error transform_track_interpolate(int p_track, float p_time, Vector3 *r_loc, Quat *r_rot, Vector3 *r_scale) const;
+	Error transform_track_interpolate(int p_track, float p_time, Vector3 *r_loc, Quat *r_rot, Vector3 *r_scale, bool reverse = false) const;
 
 	Variant value_track_interpolate(int p_track, float p_time) const;
 	void value_track_get_key_indices(int p_track, float p_time, float p_delta, List<int> *p_indices) const;
