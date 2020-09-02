@@ -1209,7 +1209,7 @@ void AnimationTree::_process_graph(float p_delta) {
 
 						if (delta == 0 || seeked) {
 							//seek
-							int idx = a->track_find_key(i, time, reverse);
+							int idx = a->track_find_key(i, time);
 							if (idx < 0)
 								continue;
 

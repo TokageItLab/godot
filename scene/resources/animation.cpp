@@ -943,7 +943,7 @@ void Animation::track_remove_key(int p_track, int p_idx) {
 	emit_changed();
 }
 
-int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reverse) const {
+int Animation::track_find_key(int p_track, float p_time, bool p_exact) const {
 
 	ERR_FAIL_INDEX_V(p_track, tracks.size(), -1);
 	Track *t = tracks[p_track];
@@ -952,7 +952,7 @@ int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reve
 		case TYPE_TRANSFORM: {
 
 			TransformTrack *tt = static_cast<TransformTrack *>(t);
-			int k = _find(tt->transforms, p_time, reverse);
+			int k = _find(tt->transforms, p_time);
 			if (k < 0 || k >= tt->transforms.size())
 				return -1;
 			if (tt->transforms[k].time != p_time && p_exact)
@@ -963,7 +963,7 @@ int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reve
 		case TYPE_VALUE: {
 
 			ValueTrack *vt = static_cast<ValueTrack *>(t);
-			int k = _find(vt->values, p_time, reverse);
+			int k = _find(vt->values, p_time);
 			if (k < 0 || k >= vt->values.size())
 				return -1;
 			if (vt->values[k].time != p_time && p_exact)
@@ -974,7 +974,7 @@ int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reve
 		case TYPE_METHOD: {
 
 			MethodTrack *mt = static_cast<MethodTrack *>(t);
-			int k = _find(mt->methods, p_time, reverse);
+			int k = _find(mt->methods, p_time);
 			if (k < 0 || k >= mt->methods.size())
 				return -1;
 			if (mt->methods[k].time != p_time && p_exact)
@@ -985,7 +985,7 @@ int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reve
 		case TYPE_BEZIER: {
 
 			BezierTrack *bt = static_cast<BezierTrack *>(t);
-			int k = _find(bt->values, p_time, reverse);
+			int k = _find(bt->values, p_time);
 			if (k < 0 || k >= bt->values.size())
 				return -1;
 			if (bt->values[k].time != p_time && p_exact)
@@ -996,7 +996,7 @@ int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reve
 		case TYPE_AUDIO: {
 
 			AudioTrack *at = static_cast<AudioTrack *>(t);
-			int k = _find(at->values, p_time, reverse);
+			int k = _find(at->values, p_time);
 			if (k < 0 || k >= at->values.size())
 				return -1;
 			if (at->values[k].time != p_time && p_exact)
@@ -1007,7 +1007,7 @@ int Animation::track_find_key(int p_track, float p_time, bool p_exact, bool reve
 		case TYPE_ANIMATION: {
 
 			AnimationTrack *at = static_cast<AnimationTrack *>(t);
-			int k = _find(at->values, p_time, reverse);
+			int k = _find(at->values, p_time);
 			if (k < 0 || k >= at->values.size())
 				return -1;
 			if (at->values[k].time != p_time && p_exact)
