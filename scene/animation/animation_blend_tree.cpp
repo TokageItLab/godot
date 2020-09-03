@@ -108,10 +108,8 @@ float AnimationNodeAnimation::process(float p_time, bool p_seek) {
 
 	} else if (time > anim_size) {
 		time = anim_size;
-		step = 0;
 	} else if (time < 0) {
 		time = 0;
-		step = 0;
 	}
 
 	blend_animation(animation, time, step, p_seek, 1.0);

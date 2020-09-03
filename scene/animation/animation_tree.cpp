@@ -904,6 +904,9 @@ void AnimationTree::_process_graph(float p_delta) {
 									} else {
 										prev_time = Math::fposmod(prev_time, a->get_length());
 									}
+								} else if (!a->has_loop() && time >= a->get_length()) {
+									time = a->get_length();
+									prev_time = a->get_length();
 								}
 							} else {
 								if (prev_time > a->get_length()) {
@@ -912,6 +915,9 @@ void AnimationTree::_process_graph(float p_delta) {
 									} else {
 										prev_time = Math::fposmod(prev_time, a->get_length());
 									}
+								} else if (!a->has_loop() && time <= 0) {
+									time = 0;
+									prev_time = 0;
 								}
 							}
 
