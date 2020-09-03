@@ -1172,8 +1172,16 @@ void AnimationTree::_process_graph(float p_delta) {
 
 								bool stop = false;
 
-								if (!loop && time < t->start) {
-									stop = true;
+								if (!loop) {
+									if (!reverse) {
+										if (time < t->start) {
+											stop = true;
+										}
+									} else {
+										if (time > t->start) {
+											stop = true;
+										}
+									}
 								} else if (t->len > 0) {
 									float len = t->start > time ? (a->get_length() - t->start) + time : time - t->start;
 
@@ -1207,7 +1215,7 @@ void AnimationTree::_process_graph(float p_delta) {
 						if (!player2)
 							continue;
 
-						if (delta == 0 || seeked) {
+						if (seeked) {
 							//seek
 							int idx = a->track_find_key(i, time);
 							if (idx < 0)
