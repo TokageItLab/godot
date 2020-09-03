@@ -1173,11 +1173,13 @@ void AnimationTree::_process_graph(float p_delta) {
 								bool stop = false;
 
 								if (!loop) {
-									if (!reverse) {
+									// An audio will be not stopped when animation end.
+									// You will be able to stop the audio by making 'stop = true' when 'delta == 0'.
+									if (delta > 0) {
 										if (time < t->start) {
 											stop = true;
 										}
-									} else {
+									} else if (delta < 0) {
 										if (time > t->start) {
 											stop = true;
 										}
