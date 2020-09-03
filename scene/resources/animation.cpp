@@ -1860,7 +1860,7 @@ T Animation::_interpolate(const Vector<TKey<T> > &p_keys, float p_time, Interpol
 
 				} else {
 
-					next = len - 1;
+					next = idx;
 				}
 
 			} else {
@@ -1887,7 +1887,7 @@ T Animation::_interpolate(const Vector<TKey<T> > &p_keys, float p_time, Interpol
 
 				} else {
 
-					next = 0;
+					next = idx;
 				}
 
 			} else {
