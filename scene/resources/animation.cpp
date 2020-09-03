@@ -1844,31 +1844,60 @@ T Animation::_interpolate(const Vector<TKey<T> > &p_keys, float p_time, Interpol
 
 	} else { // no loop
 
-		if (idx >= 0) {
+		if (!reverse){
+			if (idx >= 0) {
 
-			if ((idx + 1) < len) {
+				if (idx < len - 1) {
 
-				next = idx + 1;
-				float delta = p_keys[next].time - p_keys[idx].time;
-				float from = p_time - p_keys[idx].time;
+					next = idx + 1;
+					float delta = p_keys[next].time - p_keys[idx].time;
+					float from = p_time - p_keys[idx].time;
 
-				if (Math::is_zero_approx(delta))
-					c = 0;
-				else
-					c = from / delta;
+					if (Math::is_zero_approx(delta))
+						c = 0;
+					else
+						c = from / delta;
+
+				} else {
+
+					next = len - 1;
+				}
 
 			} else {
 
-				next = idx;
+				// only allow extending first key to anim start if looping
+				if (loop)
+					idx = next = 0;
+				else
+					result = false;
 			}
-
 		} else {
+			if (idx <= len - 1) {
 
-			// only allow extending first key to anim start if looping
-			if (loop)
-				idx = next = 0;
-			else
-				result = false;
+				if (idx > 0) {
+
+					next = idx - 1;
+					float delta = (length - p_keys[next].time) - (length - p_keys[idx].time);
+					float from = (length - p_time) - (length - p_keys[idx].time);
+
+					if (Math::is_zero_approx(delta))
+						c = 0;
+					else
+						c = from / delta;
+
+				} else {
+
+					next = 0;
+				}
+
+			} else {
+
+				// only allow extending first key to anim start if looping
+				if (loop)
+					idx = next = len - 1;
+				else
+					result = false;
+			}
 		}
 	}
 
