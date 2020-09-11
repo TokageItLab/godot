@@ -41,6 +41,14 @@ StringName AnimationNodeAnimation::get_animation() const {
 	return animation;
 }
 
+void AnimationNodeAnimation::set_seek_root(bool p_seek_root) {
+	seek_root = p_seek_root;
+}
+
+bool AnimationNodeAnimation::get_seek_root() {
+	return seek_root;
+}
+
 Vector<String> (*AnimationNodeAnimation::get_editable_animation_list)() = NULL;
 
 void AnimationNodeAnimation::get_parameter_list(List<PropertyInfo> *r_list) const {
@@ -91,7 +99,7 @@ float AnimationNodeAnimation::process(float p_time, bool p_seek) {
 	float step;
 
 	if (p_seek) {
-		step = p_time - time;
+		step = seek_root ? p_time - time : 0;
 		time = p_time;
 	} else {
 		time = time + p_time;
@@ -128,14 +136,18 @@ String AnimationNodeAnimation::get_caption() const {
 void AnimationNodeAnimation::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_animation", "name"), &AnimationNodeAnimation::set_animation);
 	ClassDB::bind_method(D_METHOD("get_animation"), &AnimationNodeAnimation::get_animation);
+	ClassDB::bind_method(D_METHOD("set_seek_root", "enable"), &AnimationNodeAnimation::set_seek_root);
+	ClassDB::bind_method(D_METHOD("get_seek_root"), &AnimationNodeAnimation::get_seek_root);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "animation"), "set_animation", "get_animation");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "seek_root"), "set_seek_root", "get_seek_root");
 }
 
 AnimationNodeAnimation::AnimationNodeAnimation() {
 	last_version = 0;
 	skip = false;
 	time = "time";
+	seek_root = false;
 }
 
 ////////////////////////////////////////////////////////

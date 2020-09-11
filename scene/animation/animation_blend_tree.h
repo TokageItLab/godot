@@ -39,6 +39,7 @@ class AnimationNodeAnimation : public AnimationRootNode {
 
 	StringName animation;
 	StringName time;
+	bool seek_root;
 
 	uint64_t last_version;
 	bool skip;
@@ -58,6 +59,8 @@ public:
 
 	void set_animation(const StringName &p_name);
 	StringName get_animation() const;
+	void set_seek_root(bool p_seek_root);
+	bool get_seek_root();
 
 	AnimationNodeAnimation();
 };
