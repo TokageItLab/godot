@@ -858,6 +858,7 @@ void AnimationTree::_process_graph(float p_delta) {
 			float time = as.time;
 			float delta = as.delta;
 			bool seeked = as.seeked;
+			bool reverse = delta < 0;
 
 			for (int i = 0; i < a->get_track_count(); i++) {
 
@@ -900,11 +901,22 @@ void AnimationTree::_process_graph(float p_delta) {
 							}
 
 							float prev_time = time - delta;
-							if (prev_time < 0) {
-								if (!a->has_loop()) {
-									prev_time = 0;
-								} else {
-									prev_time = a->get_length() + prev_time;
+
+							if (!reverse) {
+								if (prev_time < 0) {
+									if (!a->has_loop()) {
+										prev_time = 0;
+									} else {
+										prev_time = Math::fposmod(prev_time, a->get_length());
+									}
+								}
+							} else {
+								if (prev_time > a->get_length()) {
+									if (!a->has_loop()) {
+										prev_time = a->get_length();
+									} else {
+										prev_time = Math::fposmod(prev_time, a->get_length());
+									}
 								}
 							}
 
@@ -912,14 +924,30 @@ void AnimationTree::_process_graph(float p_delta) {
 							Quat rot[2];
 							Vector3 scale[2];
 
-							if (prev_time > time) {
+							if (!reverse) {
+								if (prev_time > time) {
 
-								Error err = a->transform_track_interpolate(i, prev_time, &loc[0], &rot[0], &scale[0]);
+									Error err = a->transform_track_interpolate(i, prev_time, &loc[0], &rot[0], &scale[0], reverse);
+									if (err != OK) {
+										continue;
+									}
+
+									a->transform_track_interpolate(i, a->get_length(), &loc[1], &rot[1], &scale[1], reverse);
+
+									t->loc += (loc[1] - loc[0]) * blend;
+									t->scale += (scale[1] - scale[0]) * blend;
+									Quat q = Quat().slerp(rot[0].normalized().inverse() * rot[1].normalized(), blend).normalized();
+									t->rot = (t->rot * q).normalized();
+
+									prev_time = 0;
+								}
+
+								Error err = a->transform_track_interpolate(i, prev_time, &loc[0], &rot[0], &scale[0], reverse);
 								if (err != OK) {
 									continue;
 								}
 
-								a->transform_track_interpolate(i, a->get_length(), &loc[1], &rot[1], &scale[1]);
+								a->transform_track_interpolate(i, time, &loc[1], &rot[1], &scale[1], reverse);
 
 								t->loc += (loc[1] - loc[0]) * blend;
 								t->scale += (scale[1] - scale[0]) * blend;
@@ -927,28 +955,45 @@ void AnimationTree::_process_graph(float p_delta) {
 								t->rot = (t->rot * q).normalized();
 
 								prev_time = 0;
+							} else {
+								if (prev_time < time) {
+
+									Error err = a->transform_track_interpolate(i, prev_time, &loc[0], &rot[0], &scale[0], reverse);
+									if (err != OK) {
+										continue;
+									}
+
+									a->transform_track_interpolate(i, 0, &loc[1], &rot[1], &scale[1], reverse);
+
+									t->loc += (loc[1] - loc[0]) * blend;
+									t->scale += (scale[1] - scale[0]) * blend;
+									Quat q = Quat().slerp(rot[0].normalized().inverse() * rot[1].normalized(), blend).normalized();
+									t->rot = (t->rot * q).normalized();
+
+									prev_time = a->get_length();
+								}
+
+								Error err = a->transform_track_interpolate(i, prev_time, &loc[0], &rot[0], &scale[0], reverse);
+								if (err != OK) {
+									continue;
+								}
+
+								a->transform_track_interpolate(i, time, &loc[1], &rot[1], &scale[1], reverse);
+
+								t->loc += (loc[1] - loc[0]) * blend;
+								t->scale += (scale[1] - scale[0]) * blend;
+								Quat q = Quat().slerp(rot[0].normalized().inverse() * rot[1].normalized(), blend).normalized();
+								t->rot = (t->rot * q).normalized();
+
+								prev_time = a->get_length();
 							}
-
-							Error err = a->transform_track_interpolate(i, prev_time, &loc[0], &rot[0], &scale[0]);
-							if (err != OK) {
-								continue;
-							}
-
-							a->transform_track_interpolate(i, time, &loc[1], &rot[1], &scale[1]);
-
-							t->loc += (loc[1] - loc[0]) * blend;
-							t->scale += (scale[1] - scale[0]) * blend;
-							Quat q = Quat().slerp(rot[0].normalized().inverse() * rot[1].normalized(), blend).normalized();
-							t->rot = (t->rot * q).normalized();
-
-							prev_time = 0;
 
 						} else {
 							Vector3 loc;
 							Quat rot;
 							Vector3 scale;
 
-							Error err = a->transform_track_interpolate(i, time, &loc, &rot, &scale);
+							Error err = a->transform_track_interpolate(i, time, &loc, &rot, &scale, reverse);
 							//ERR_CONTINUE(err!=OK); //used for testing, should be removed
 
 							if (t->process_pass != process_pass) {
@@ -1139,8 +1184,18 @@ void AnimationTree::_process_graph(float p_delta) {
 
 								bool stop = false;
 
-								if (!loop && time < t->start) {
-									stop = true;
+								if (!loop) {
+									// An audio will be not stopped when animation end.
+									// You will be able to stop the audio by making 'stop = true' when 'delta == 0'.
+									if (delta > 0) {
+										if (time < t->start) {
+											stop = true;
+										}
+									} else if (delta < 0) {
+										if (time > t->start) {
+											stop = true;
+										}
+									}
 								} else if (t->len > 0) {
 									float len = t->start > time ? (a->get_length() - t->start) + time : time - t->start;
 
@@ -1174,7 +1229,7 @@ void AnimationTree::_process_graph(float p_delta) {
 						if (!player2)
 							continue;
 
-						if (delta == 0 || seeked) {
+						if (seeked) {
 							//seek
 							int idx = a->track_find_key(i, time);
 							if (idx < 0)
