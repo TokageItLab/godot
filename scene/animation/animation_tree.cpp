@@ -117,7 +117,6 @@ void AnimationNode::blend_animation(const StringName &p_animation, float p_time,
 	anim_state.seeked = p_seeked;
 	anim_state.add_directly = add_directly;
 
-	if (add_directly) add_directly = !add_directly;
 	state->animation_states.push_back(anim_state);
 }
 
