@@ -482,8 +482,10 @@ float AnimationNodeAdd3::process(float p_time, bool p_seek) {
 	float rem0 = blend_input(1, p_time, p_seek, 1.0, FILTER_IGNORE, !sync);
 	if (amount < 0) {
 		blend_input(0, p_time, p_seek, -amount, FILTER_PASS, !sync, add_directly);
+		blend_input(2, p_time, p_seek, 0, FILTER_PASS, !sync);
 	} else {
 		blend_input(2, p_time, p_seek, amount, FILTER_PASS, !sync, add_directly);
+		blend_input(0, p_time, p_seek, 0, FILTER_PASS, !sync);
 	}
 
 	return rem0;

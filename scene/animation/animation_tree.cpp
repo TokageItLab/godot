@@ -160,9 +160,9 @@ float AnimationNode::blend_input(int p_input, float p_time, bool p_seek, float p
 		String name = blend_tree->get_node_name(Ref<AnimationNode>(this));
 		make_invalid(vformat(RTR("Nothing connected to input '%s' of node '%s'."), get_input_name(p_input), name));
 		return 0;
-	} else if (p_add_directly) {
+	} else {
 		Ref<AnimationNode> node = blend_tree->get_node(node_name);
-		node->add_directly = true;
+		node->add_directly = p_add_directly;
 	}
 
 	Ref<AnimationNode> node = blend_tree->get_node(node_name);
