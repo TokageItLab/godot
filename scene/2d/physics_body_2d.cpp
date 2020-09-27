@@ -1218,17 +1218,15 @@ Vector2 KinematicBody2D::move_and_slide(const Vector2 &p_linear_velocity, const 
 	Vector2 body_velocity_normal = body_velocity.normalized();
 	Vector2 up_direction = p_up_direction.normalized();
 
-	Vector2 current_floor_velocity = floor_velocity;
-	if (on_floor && on_floor_body.is_valid()) {
-		//this approach makes sure there is less delay between the actual body velocity and the one we saved
-		Physics2DDirectBodyState *bs = Physics2DServer::get_singleton()->body_get_direct_state(on_floor_body);
-		if (bs) {
-			current_floor_velocity = bs->get_linear_velocity();
-		}
-	}
-
 	// Hack in order to work with calling from _process as well as from _physics_process; calling from thread is risky
-	Vector2 motion = (current_floor_velocity + body_velocity) * (Engine::get_singleton()->is_in_physics_frame() ? get_physics_process_delta_time() : get_process_delta_time());
+	float delta_time = (Engine::get_singleton()->is_in_physics_frame() ? get_physics_process_delta_time() : get_process_delta_time());
+	Vector2 motion = body_velocity * delta_time;
+	if (floor_velocity != Vector2()) {
+		Vector2 floor_motion = (floor_velocity) * delta_time;
+		Transform2D gt = get_global_transform();
+		gt.elements[2] += floor_motion;
+		set_global_transform(gt);
+	}
 
 	on_floor = false;
 	on_floor_body = RID();
