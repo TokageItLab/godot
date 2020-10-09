@@ -240,10 +240,8 @@ void Skeleton3D::_notification(int p_what) {
 		case NOTIFICATION_UPDATE_SKELETON_BONE_ONLY: {
 			_update_process_order();
 			const int *order = process_order.ptr();
-
-			Bone *bonesptr = bones.ptrw();
 			int len = bones.size();
-						
+
 			while (dirty_idxes.size() > 0) {
 				for (int i = 0; i < len; i++) {
 					int dirty_idx = dirty_idxes.find(order[i], 0);
