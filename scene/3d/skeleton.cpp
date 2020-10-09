@@ -431,7 +431,7 @@ Transform Skeleton::get_bone_global_pose(int p_bone, bool update_skins) const {
 
 	ERR_FAIL_INDEX_V(p_bone, bones.size(), Transform());
 	if (skins_dirty) {
-		if (!update_skins) {
+		if (update_skins) {
 			const_cast<Skeleton *>(this)->notification(NOTIFICATION_UPDATE_SKELETON);
 		} else {
 			const_cast<Skeleton *>(this)->notification(NOTIFICATION_UPDATE_SKELETON_BONE_ONLY);
