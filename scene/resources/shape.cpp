@@ -110,13 +110,13 @@ void Shape::_bind_methods() {
 }
 
 Shape::Shape() :
-		margin(0.04) {
+		margin(0.001) {
 
 	ERR_PRINT("Constructor must not be called!");
 }
 
 Shape::Shape(RID p_shape) :
-		margin(0.04) {
+		margin(0.001) {
 
 	shape = p_shape;
 }
