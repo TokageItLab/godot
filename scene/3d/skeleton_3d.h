@@ -80,6 +80,8 @@ private:
 		int parent = -1;
 		int sort_index = -1; //used for re-sorting process order
 
+		Vector<int> children = Vector<int>();
+
 		bool disable_rest = false;
 
 		// bones current rest bind
@@ -137,6 +139,10 @@ protected:
 	static void _bind_methods();
 
 public:
+	enum {
+		NOTIFICATION_UPDATE_SKELETON = 50
+	};
+
 	// skeleton creation api
 	void add_bone(const String &p_name);
 	int find_bone(const String &p_name) const;
@@ -147,6 +153,8 @@ public:
 	void set_bone_parent(int p_bone, int p_parent);
 	int get_bone_parent(int p_bone) const;
 
+	Array get_bone_children(int p_bone);
+
 	void unparent_bone_and_rest(int p_bone);
 
 	void set_bone_disable_rest(int p_bone, bool p_disable);
@@ -156,8 +164,8 @@ public:
 
 	void set_bone_rest(int p_bone, const Transform &p_rest);
 	Transform get_bone_rest(int p_bone) const;
-	Transform get_bone_global_pose(int p_bone) const;
-	Transform get_bone_global_pose_without_override(int p_bone) const;
+	Transform get_bone_global_pose(int p_bone, bool force_update = false) const;
+	Transform get_bone_global_pose_without_override(int p_bone, bool force_update = false) const;
 	Transform get_bone_global_rest(int p_bone) const;
 
 	void clear_bones_global_pose_override();
