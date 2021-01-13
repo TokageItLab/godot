@@ -617,10 +617,10 @@ int EditorPlugin::update_overlays() const {
 	}
 }
 
-bool EditorPlugin::forward_spatial_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event) {
+bool EditorPlugin::forward_spatial_gui_input(int p_index, Camera *p_camera, const Ref<InputEvent> &p_event) {
 
 	if (get_script_instance() && get_script_instance()->has_method("forward_spatial_gui_input")) {
-		return get_script_instance()->call("forward_spatial_gui_input", p_camera, p_event);
+		return get_script_instance()->call("forward_spatial_gui_input", p_index, p_camera, p_event);
 	}
 
 	return false;
@@ -903,7 +903,7 @@ void EditorPlugin::_bind_methods() {
 	ClassDB::add_virtual_method(get_class_static(), MethodInfo(Variant::BOOL, "forward_canvas_gui_input", PropertyInfo(Variant::OBJECT, "event", PROPERTY_HINT_RESOURCE_TYPE, "InputEvent")));
 	ClassDB::add_virtual_method(get_class_static(), MethodInfo("forward_canvas_draw_over_viewport", PropertyInfo(Variant::OBJECT, "overlay", PROPERTY_HINT_RESOURCE_TYPE, "Control")));
 	ClassDB::add_virtual_method(get_class_static(), MethodInfo("forward_canvas_force_draw_over_viewport", PropertyInfo(Variant::OBJECT, "overlay", PROPERTY_HINT_RESOURCE_TYPE, "Control")));
-	ClassDB::add_virtual_method(get_class_static(), MethodInfo(Variant::BOOL, "forward_spatial_gui_input", PropertyInfo(Variant::OBJECT, "camera", PROPERTY_HINT_RESOURCE_TYPE, "Camera"), PropertyInfo(Variant::OBJECT, "event", PROPERTY_HINT_RESOURCE_TYPE, "InputEvent")));
+	ClassDB::add_virtual_method(get_class_static(), MethodInfo(Variant::BOOL, "forward_spatial_gui_input", PropertyInfo(Variant::INT, "index"), PropertyInfo(Variant::OBJECT, "camera", PROPERTY_HINT_RESOURCE_TYPE, "Camera"), PropertyInfo(Variant::OBJECT, "event", PROPERTY_HINT_RESOURCE_TYPE, "InputEvent")));
 	ClassDB::add_virtual_method(get_class_static(), MethodInfo(Variant::STRING, "get_plugin_name"));
 	ClassDB::add_virtual_method(get_class_static(), MethodInfo(PropertyInfo(Variant::OBJECT, "icon", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "get_plugin_icon"));
 	ClassDB::add_virtual_method(get_class_static(), MethodInfo(Variant::BOOL, "has_main_screen"));
