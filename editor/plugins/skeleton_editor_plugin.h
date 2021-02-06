@@ -192,6 +192,7 @@ class SkeletonEditor : public VBoxContainer {
 	void _on_click_option(int p_option);
 	void _file_selected(const String &p_file);
 	void _menu_tool_item_pressed(int p_option);
+	TreeItem *_find(TreeItem *p_node, const NodePath &p_path);
 	void rest_mode_toggled(const bool pressed);
 
 	EditorFileDialog *file_export_lib;

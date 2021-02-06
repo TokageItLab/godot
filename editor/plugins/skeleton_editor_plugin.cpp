@@ -1222,9 +1222,17 @@ bool SkeletonEditor::forward_spatial_gui_input(int p_index, Camera *p_camera, co
 						}
 					}
 					if (closest_idx >= 0) {
-						TreeItem *ti = joint_tree->get_item_with_text(skeleton->get_bone_name(closest_idx));
-						ti->select(0);
-						joint_tree->scroll_to_item(ti);
+						TreeItem *ti = _find(joint_tree->get_root(), "bones/" + itos(closest_idx));
+						if (ti) {
+							// make visible when it's collapsed
+							TreeItem *node = ti->get_parent();
+							while (node && node != joint_tree->get_root()) {
+								node->set_collapsed(false);
+								node = node->get_parent();
+							}
+							ti->select(0);
+							joint_tree->scroll_to_item(ti);
+						}
 					} else {
 						skeleton->set_selected_bone(-1);
 						joint_tree->deselect_all();
@@ -1802,4 +1810,26 @@ bool SkeletonEditor::_gizmo_select(int p_index, const Vector2 &p_screenpos, bool
 		se->select_gizmo_highlight_axis(-1);
 
 	return false;
+}
+
+TreeItem *SkeletonEditor::_find(TreeItem *p_node, const NodePath &p_path) {
+	if (!p_node) {
+		return NULL;
+	}
+
+	NodePath np = p_node->get_metadata(0);
+	if (np == p_path) {
+		return p_node;
+	}
+
+	TreeItem *children = p_node->get_children();
+	while (children) {
+		TreeItem *n = _find(children, p_path);
+		if (n) {
+			return n;
+		}
+		children = children->get_next();
+	}
+
+	return NULL;
 }
