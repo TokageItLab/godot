@@ -1691,13 +1691,13 @@ void SkeletonSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	AABB aabb;
 
 	for (int i_bone = 0; i_bone < skel->get_bone_count(); i_bone++) {
-		if (skel->get_bone_parent(i_bone) == skel->get_selected_bone()) {
+		int i = skel->get_process_order(i_bone);
+
+		if (skel->get_bone_parent(i) == skel->get_selected_bone()) {
 			bone_color = selected_bone_color;
 		} else {
 			bone_color = skeleton_color;
 		}
-
-		int i = skel->get_process_order(i_bone);
 
 		int parent = skel->get_bone_parent(i);
 
@@ -1738,17 +1738,17 @@ void SkeletonSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 					surface_tool->add_bones(bones);
 					surface_tool->add_weights(weights);
 					surface_tool->add_color(axis_color[j]);
-					surface_tool->add_vertex(v1 + grests[i].basis[j].normalized() * bone_axis_length);
+					surface_tool->add_vertex(v1 + (grests[i].basis.inverse())[j].normalized() * bone_axis_length);
 				} else {
 					bones.write[0] = i;
 					surface_tool->add_bones(bones);
 					surface_tool->add_weights(weights);
 					surface_tool->add_color(axis_color[j]);
-					surface_tool->add_vertex(v1 - grests[i].basis[j].normalized() * dist * 0.05);
+					surface_tool->add_vertex(v1 - (grests[i].basis.inverse())[j].normalized() * bone_axis_length * 0.5);
 					surface_tool->add_bones(bones);
 					surface_tool->add_weights(weights);
 					surface_tool->add_color(axis_color[j]);
-					surface_tool->add_vertex(v1 + grests[i].basis[j].normalized() * dist * 0.05);
+					surface_tool->add_vertex(v1 + (grests[i].basis.inverse())[j].normalized() * bone_axis_length * 0.5);
 				}
 
 				if (j == closest)
@@ -1823,6 +1823,37 @@ void SkeletonSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 
 			grests.write[i] = skel->get_bone_rest(i);
 			bones.write[0] = i;
+
+			Vector3 v1 = grests[i].origin;
+			Color axis_color[3];
+			axis_color[0] = Color(1,0,0);
+			axis_color[1] = Color(0,1,0);
+			axis_color[2] = Color(0,0,1);
+			for (int j = 0; j < 3; j++) {
+
+				if (p_gizmo->is_selected()) {
+					bones.write[0] = i;
+					surface_tool->add_bones(bones);
+					surface_tool->add_weights(weights);
+					surface_tool->add_color(axis_color[j]);
+					surface_tool->add_vertex(v1);
+					surface_tool->add_bones(bones);
+					surface_tool->add_weights(weights);
+					surface_tool->add_color(axis_color[j]);
+					surface_tool->add_vertex(v1 + (grests[i].basis.inverse())[j].normalized() * bone_axis_length);
+				} else {
+					bones.write[0] = i;
+					surface_tool->add_bones(bones);
+					surface_tool->add_weights(weights);
+					surface_tool->add_color(axis_color[j]);
+					surface_tool->add_vertex(v1 - (grests[i].basis.inverse())[j].normalized() * bone_axis_length * 0.5);
+					surface_tool->add_bones(bones);
+					surface_tool->add_weights(weights);
+					surface_tool->add_color(axis_color[j]);
+					surface_tool->add_vertex(v1 + (grests[i].basis.inverse())[j].normalized() * bone_axis_length * 0.5);
+				}
+			}
+
 		}
 		/*
 		Transform  t = grests[i];
