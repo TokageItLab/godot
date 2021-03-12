@@ -367,13 +367,13 @@ void BoneTransformEditor::_update_transform_properties(Transform tform) {
 	}
 
 	transform_slider[0]->set_value(tform.get_basis()[Vector3::AXIS_X].x);
-	transform_slider[1]->set_value(tform.get_basis()[Vector3::AXIS_X].y);
-	transform_slider[2]->set_value(tform.get_basis()[Vector3::AXIS_X].z);
-	transform_slider[3]->set_value(tform.get_basis()[Vector3::AXIS_Y].x);
+	transform_slider[1]->set_value(tform.get_basis()[Vector3::AXIS_Y].x);
+	transform_slider[2]->set_value(tform.get_basis()[Vector3::AXIS_Z].x);
+	transform_slider[3]->set_value(tform.get_basis()[Vector3::AXIS_X].y);
 	transform_slider[4]->set_value(tform.get_basis()[Vector3::AXIS_Y].y);
-	transform_slider[5]->set_value(tform.get_basis()[Vector3::AXIS_Y].z);
-	transform_slider[6]->set_value(tform.get_basis()[Vector3::AXIS_Z].x);
-	transform_slider[7]->set_value(tform.get_basis()[Vector3::AXIS_Z].y);
+	transform_slider[5]->set_value(tform.get_basis()[Vector3::AXIS_Z].y);
+	transform_slider[6]->set_value(tform.get_basis()[Vector3::AXIS_X].z);
+	transform_slider[7]->set_value(tform.get_basis()[Vector3::AXIS_Y].z);
 	transform_slider[8]->set_value(tform.get_basis()[Vector3::AXIS_Z].z);
 
 	for (int i = 0; i < TRANSLATION_COMPONENTS; i++) {
