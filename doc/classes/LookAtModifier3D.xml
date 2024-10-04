@@ -59,7 +59,7 @@
 			[b]Note:[/b] This value indicates the local position of the object set in [member origin_from].
 		</member>
 		<member name="primary_damp_threshold" type="float" setter="set_primary_damp_threshold" getter="get_primary_damp_threshold">
-			The threshold to start damping for [member primary_limit_angle]. It provides non-linear(logarithmic) interpolation, let it feel more resistance the more it rotate to the edge limit. This is useful for simulating the limits of human motion.
+			The threshold to start damping for [member primary_limit_angle]. It provides non-linear(inverse exponential) interpolation, let it feel more resistance the more it rotate to the edge limit. This is useful for simulating the limits of human motion.
 			If [code]1.0[/code], no damping is performed. If [code]0.0[/code], damping is performed always.
 		</member>
 		<member name="primary_limit_angle" type="float" setter="set_primary_limit_angle" getter="get_primary_limit_angle">
