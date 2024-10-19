@@ -275,6 +275,8 @@ public:
 	void reset_bone_pose(int p_bone);
 	void reset_bone_poses();
 
+	void set_bone_pose_unsafe(int p_bone, const Transform3D &p_pose);
+
 	void localize_rests(); // Used for loaders and tools.
 
 	Ref<Skin> create_skin_from_rest_transforms();

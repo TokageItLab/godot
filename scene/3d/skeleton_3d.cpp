@@ -923,6 +923,9 @@ Transform3D Skeleton3D::get_bone_pose(int p_bone) const {
 	return bones[p_bone].pose_cache;
 }
 
+void Skeleton3D::set_bone_pose_unsafe(int p_bone, const Transform3D &p_pose) {
+	bones[p_bone].pose_cache = p_pose;
+}
 void Skeleton3D::_make_dirty() {
 	if (dirty) {
 		return;
