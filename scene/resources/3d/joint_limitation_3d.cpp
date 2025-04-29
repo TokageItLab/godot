@@ -39,21 +39,18 @@ Quaternion JointLimitation3D::_make_space(const Quaternion &p_rest_on_parent_glo
 	return Basis(axis_x, axis_y, axis_z).get_rotation_quaternion();
 }
 
-Vector3 JointLimitation3D::_solve(const Vector3 &p_prev_dir, const Vector3 &p_new_dir) const {
-	return p_new_dir;
+Vector3 JointLimitation3D::_solve(const Vector3 &p_direction) const {
+	return p_direction;
 }
 
 Vector3 JointLimitation3D::solve(
-			const Vector3 &p_prev_global_origin,
-			const Vector3 &p_prev_global_destination,
-			const Vector3 &p_new_global_origin,
-			const Vector3 &p_new_global_destination,
+			const Vector3 &p_global_origin,
+			const Vector3 &p_global_destination,
 			const Quaternion &p_rest_on_parent_global_pose,
 			const Vector3 &p_local_forward_vector,
 			const double p_length
 		) const {
 	Quaternion space = _make_space(p_rest_on_parent_global_pose, p_local_forward_vector);
-	Vector3 old_dir = space.xform(p_rest_on_parent_global_pose.xform_inv((p_prev_global_destination - p_prev_global_origin).normalized()));
-	Vector3 new_dir = space.xform(p_rest_on_parent_global_pose.xform_inv((p_new_global_destination - p_new_global_origin).normalized()));
-	return p_new_global_origin + p_rest_on_parent_global_pose.xform(space.xform_inv(_solve(old_dir, new_dir))) * p_length;
+	Vector3 dir = space.xform(p_rest_on_parent_global_pose.xform_inv((p_global_destination - p_global_origin).normalized()));
+	return p_global_origin + p_rest_on_parent_global_pose.xform(space.xform_inv(_solve(dir))) * p_length;
 }

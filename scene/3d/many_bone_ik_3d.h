@@ -48,6 +48,14 @@ public:
 		BONE_DIRECTION_FROM_PARENT,
 	};
 
+	enum RotationAxis {
+		ROTATION_AXIS_X,
+		ROTATION_AXIS_Y,
+		ROTATION_AXIS_Z,
+		ROTATION_AXIS_ALL,
+		ROTATION_AXIS_OPTIONAL,
+	};
+
 	struct ManyBoneIK3DSolverInfo {
 		Quaternion current_rot;
 		Vector3 forward_vector;
@@ -57,6 +65,31 @@ public:
 	struct ManyBoneIK3DJointSetting {
 		String bone_name;
 		int bone = -1;
+
+		// Pole vector.
+		RotationAxis rotation_axis = ROTATION_AXIS_ALL;
+		Vector3 rotation_axis_vector = Vector3(1, 0, 0);
+		Vector3 get_rotation_axis_vector() const {
+			Vector3 ret;
+			switch (rotation_axis) {
+				case ROTATION_AXIS_X:
+					ret = Vector3(1, 0, 0);
+					break;
+				case ROTATION_AXIS_Y:
+					ret = Vector3(0, 1, 0);
+					break;
+				case ROTATION_AXIS_Z:
+					ret = Vector3(0, 0, 1);
+					break;
+				case ROTATION_AXIS_ALL:
+					ret = Vector3(0, 0, 0);
+					break;
+				case ROTATION_AXIS_OPTIONAL:
+					ret = rotation_axis_vector;
+					break;
+			}
+			return ret;
+		}
 
 		// Limitation for the twist.
 		real_t twist_limitation = Math::PI;
@@ -122,6 +155,9 @@ protected:
 
 	void _update_joint_array(int p_index);
 
+	void _validate_rotation_axes(Skeleton3D *p_skeleton) const;
+	void _validate_rotation_axis(Skeleton3D *p_skeleton, int p_index, int p_joint) const;
+
 public:
 	// Setting.
 	void set_root_bone_name(int p_index, const String &p_bone_name);
@@ -160,6 +196,11 @@ public:
 	void set_joint_bone(int p_index, int p_joint, int p_bone);
 	int get_joint_bone(int p_index, int p_joint) const;
 
+	void set_joint_rotation_axis(int p_index, int p_joint, RotationAxis p_axis);
+	RotationAxis get_joint_rotation_axis(int p_index, int p_joint) const;
+	void set_joint_rotation_axis_vector(int p_index, int p_joint, Vector3 p_vector);
+	Vector3 get_joint_rotation_axis_vector(int p_index, int p_joint) const;
+
 	void set_joint_twist_limitation(int p_index, int p_joint, const real_t &p_angle);
 	real_t get_joint_twist_limitation(int p_index, int p_joint) const;
 	void set_joint_limitation(int p_index, int p_joint, const Ref<JointLimitation3D> &p_limitation);
@@ -180,3 +221,4 @@ public:
 };
 
 VARIANT_ENUM_CAST(ManyBoneIK3D::BoneDirection);
+VARIANT_ENUM_CAST(ManyBoneIK3D::RotationAxis);

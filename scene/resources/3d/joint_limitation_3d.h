@@ -40,14 +40,12 @@ protected:
 	virtual Quaternion _make_space(const Quaternion &p_rest_on_parent_global_pose, const Vector3 &p_local_forward_vector) const;
 
 	// Directions are normalized vector from Vector(0, 0, 0). Space is defined by _make_space(), must return normalized vector.
-	virtual Vector3 _solve(const Vector3 &p_prev_dir, const Vector3 &p_new_dir) const;
+	virtual Vector3 _solve(const Vector3 &p_direction) const;
 
 public:
 	Vector3 solve(
-			const Vector3 &p_prev_global_origin,
-			const Vector3 &p_prev_global_destination,
-			const Vector3 &p_new_global_origin,
-			const Vector3 &p_new_global_destination,
+			const Vector3 &p_global_origin,
+			const Vector3 &p_global_destination,
 			const Quaternion &p_rest_on_parent_global_pose,
 			const Vector3 &p_local_forward_vector,
 		const double p_length) const;

@@ -40,7 +40,7 @@ class JointLimitationCone3D : public JointLimitation3D {
 protected:
 	static void _bind_methods();
 
-	virtual Vector3 _solve(const Vector3 &p_prev_destination, const Vector3 &p_new_destination) const override;
+	virtual Vector3 _solve(const Vector3 &p_direction) const override;
 
 public:
 	void set_radius_range(real_t p_radius_range);
