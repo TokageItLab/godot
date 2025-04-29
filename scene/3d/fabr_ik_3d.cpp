@@ -44,11 +44,10 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 			if (!solver_info || Math::is_zero_approx(solver_info->length)) {
 				continue;
 			}
+			Quaternion current_space = (p_space * p_skeleton->get_bone_global_pose(p_joints[i]->bone)).basis.get_rotation_quaternion();
+
 			const int HEAD = i;
 			const int TAIL = i + 1;
-
-			Vector3 prev_origin = p_chain[TAIL];
-			Vector3 prev_destination = p_chain[HEAD];
 
 			if (first) {
 				p_chain.write[TAIL] = p_destination;
@@ -58,15 +57,19 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 			Vector3 new_origin = p_chain[TAIL];
 			Vector3 new_destination = limit_length(p_chain[TAIL], p_chain[HEAD], solver_info->length);
 
+			if (p_joints[i]->rotation_axis != ROTATION_AXIS_ALL) {
+				new_destination = new_origin + current_space.xform(snap_vector_to_plane(p_joints[i]->get_rotation_axis_vector(), current_space.xform_inv(new_destination - new_origin)));
+				new_destination = limit_length(new_origin, new_destination, solver_info->length);
+			}
+
 			if (p_joints[i]->limitation.is_valid()) {
 				new_destination = p_joints[i]->limitation->solve(
-					prev_origin,
-					prev_destination,
 					new_origin,
 					new_destination,
-					(p_space * p_skeleton->get_bone_global_pose(p_joints[i]->bone)).basis.get_rotation_quaternion(),
+					current_space,
 					-solver_info->forward_vector, // Tail to Head, so forward must be flipped.
 					solver_info->length);
+				new_destination = limit_length(new_origin, new_destination, solver_info->length);
 			}
 			p_chain.write[HEAD] = new_destination;
 		}
@@ -78,11 +81,10 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 			if (!solver_info || Math::is_zero_approx(solver_info->length)) {
 				continue;
 			}
+			Quaternion current_space = (p_space * p_skeleton->get_bone_global_pose(p_joints[i]->bone)).basis.get_rotation_quaternion();
+
 			const int HEAD = i;
 			const int TAIL = i + 1;
-
-			Vector3 prev_origin = p_chain[HEAD];
-			Vector3 prev_destination = p_chain[TAIL];
 
 			if (first) {
 				p_chain.write[HEAD] = p_skeleton->get_bone_global_pose(p_joints[i]->bone).origin;
@@ -92,15 +94,19 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 			Vector3 new_origin = p_chain[HEAD];
 			Vector3 new_destination = limit_length(p_chain[HEAD], p_chain[TAIL], solver_info->length);
 
+			if (p_joints[i]->rotation_axis != ROTATION_AXIS_ALL) {
+				new_destination = new_origin + current_space.xform(snap_vector_to_plane(p_joints[i]->get_rotation_axis_vector(), current_space.xform_inv(new_destination - new_origin)));
+				new_destination = limit_length(new_origin, new_destination, solver_info->length);
+			}
+
 			if (p_joints[i]->limitation.is_valid()) {
 				new_destination = p_joints[i]->limitation->solve(
-					prev_origin,
-					prev_destination,
 					new_origin,
 					new_destination,
-					(p_space * p_skeleton->get_bone_global_pose(p_joints[i]->bone)).basis.get_rotation_quaternion(),
+					current_space,
 					solver_info->forward_vector,
 					solver_info->length);
+				new_destination = limit_length(new_origin, new_destination, solver_info->length);
 			}
 			p_chain.write[TAIL] = new_destination;
 		}

@@ -42,8 +42,9 @@ void CCDIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Man
 		for (int i = p_joints.size() - 1; i >= 0; i--) {
 			ManyBoneIK3DSolverInfo *solver_info = p_joints[i]->solver_info;
 			if (!solver_info || Math::is_zero_approx(solver_info->length)) {
-				continue;
+				continue; 
 			}
+
 			const int REF_HEAD = i;
 			if (end == -1) {
 				end = i + 1;
@@ -53,24 +54,30 @@ void CCDIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Man
 			Quaternion to_rot = Quaternion(head_to_end.normalized(), to_vec.normalized());
 			for (int j = p_chain.size() - 1; j > i; j--) {
 				Vector3 head_to_any_joint = p_chain[j] - p_chain[REF_HEAD];
-
 				const int HEAD = j - 1;
-				Vector3 cur_head = p_chain[HEAD];
-				Vector3 old_tail = p_chain[j];
-				Vector3 new_tail = limit_length(cur_head, p_chain[REF_HEAD] + to_rot.xform(head_to_any_joint), solver_info->length);
 
-				if (p_joints[HEAD]->limitation.is_valid()) {
-					new_tail = p_joints[HEAD]->limitation->solve(
-						cur_head,
-						old_tail,
-						cur_head,
-						new_tail,
-						(p_space * p_skeleton->get_bone_global_pose(p_joints[HEAD]->bone)).basis.get_rotation_quaternion(),
-						solver_info->forward_vector,
-						solver_info->length);
+				ManyBoneIK3DSolverInfo *current_solver_info = p_joints[HEAD]->solver_info;
+				Quaternion current_space = (p_space * p_skeleton->get_bone_global_pose(p_joints[HEAD]->bone)).basis.get_rotation_quaternion();
+
+				Vector3 new_origin = p_chain[HEAD];
+				Vector3 new_destination = limit_length(new_origin, p_chain[REF_HEAD] + to_rot.xform(head_to_any_joint), solver_info->length);
+
+				if (p_joints[HEAD]->rotation_axis != ROTATION_AXIS_ALL) {
+					new_destination = new_origin + current_space.xform(snap_vector_to_plane(p_joints[HEAD]->get_rotation_axis_vector(), current_space.xform_inv(new_destination - new_origin)));
+					new_destination = limit_length(new_origin, new_destination, solver_info->length);
 				}
 
-				p_chain.write[j] = new_tail;
+				if (p_joints[HEAD]->limitation.is_valid()) {
+					new_destination = p_joints[HEAD]->limitation->solve(
+						new_origin,
+						new_destination,
+						current_space,
+						current_solver_info->forward_vector,
+						current_solver_info->length);
+						new_destination = limit_length(new_origin, new_destination, solver_info->length);
+				}
+
+				p_chain.write[j] = new_destination;
 			}
 		}
 

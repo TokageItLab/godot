@@ -46,18 +46,18 @@ void JointLimitationCone3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "radius_range", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_radius_range", "get_radius_range");
 }
 
-Vector3 JointLimitationCone3D::_solve(const Vector3 &p_prev_dir, const Vector3 &p_new_dir) const {
+Vector3 JointLimitationCone3D::_solve(const Vector3 &p_direction) const {
 	// Assume the central (forward of the cone) axis is the +Y.
 	// This is based on the coordinate system set by JointLimitation3D::_make_space().
 	Vector3 center_axis = Vector3(0, 1, 0);
 	
 	// Apply the limitation if the angle exceeds radius_range * PI.
-	real_t angle = p_new_dir.angle_to(center_axis);
+	real_t angle = p_direction.angle_to(center_axis);
 	real_t max_angle = radius_range * Math::PI;
 	
 	if (angle <= max_angle) {
 		// If within the limitation range, return the new direction as is.
-		return p_new_dir;
+		return p_direction;
 	} else {
 		// If outside the limitation range, calculate the closest direction within the range.
 		// Define a plane using the central axis and the new direction vector.
@@ -68,16 +68,16 @@ Vector3 JointLimitationCone3D::_solve(const Vector3 &p_prev_dir, const Vector3 &
 			// Select an arbitrary perpendicular axis
 			plane_normal = center_axis.get_any_perpendicular();
 		} else {
-			plane_normal = center_axis.cross(p_new_dir).normalized();
+			plane_normal = center_axis.cross(p_direction).normalized();
 		}
 		
 		// Calculate a vector rotated by the maximum angle from the central axis on the plane.
 		Quaternion rotation = Quaternion(plane_normal, max_angle);
 		Vector3 limited_dir = rotation.xform(center_axis);
 		
-		// Return the vector within the limitation range that is closest to p_new_dir.
-		// This preserves the directionality of p_new_dir as much as possible.
-		Vector3 projection = p_new_dir - center_axis * p_new_dir.dot(center_axis);
+		// Return the vector within the limitation range that is closest to p_direction.
+		// This preserves the directionality of p_direction as much as possible.
+		Vector3 projection = p_direction - center_axis * p_direction.dot(center_axis);
 		if (projection.length_squared() > CMP_EPSILON) {
 			Vector3 side_dir = projection.normalized();
 			Quaternion side_rotation = Quaternion(center_axis.cross(side_dir).normalized(), max_angle);
