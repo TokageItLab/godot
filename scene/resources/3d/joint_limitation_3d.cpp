@@ -50,7 +50,7 @@ Vector3 JointLimitation3D::solve(
 			const Vector3 &p_local_forward_vector,
 			const double p_length
 		) const {
-	Quaternion space = _make_space(p_local_forward_vector);
+	Quaternion space = _make_space(p_local_forward_vector) * p_rest_on_parent_global_pose;
 	Vector3 dir = space.xform((p_global_destination - p_global_origin).normalized());
 	return p_global_origin + space.xform_inv(_solve(dir)) * p_length;
 }

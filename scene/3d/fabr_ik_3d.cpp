@@ -39,6 +39,7 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 
 		// Backwards.
 		bool first = true;
+		Quaternion last_rot_inv;
 		for (int i = p_joints.size() - 1; i >= 0; i--) {
 			ManyBoneIK3DSolverInfo *solver_info = p_joints[i]->solver_info;
 			if (!solver_info || Math::is_zero_approx(solver_info->length)) {
@@ -66,16 +67,18 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 				new_destination = p_joints[i]->limitation->solve(
 					new_origin,
 					new_destination,
-					current_space,
+					last_rot_inv,
 					-solver_info->forward_vector, // Tail to Head, so forward must be flipped.
 					solver_info->length);
 				new_destination = limit_length(new_origin, new_destination, solver_info->length);
 			}
 			p_chain.write[HEAD] = new_destination;
+			last_rot_inv = get_from_to_rotation(solver_info->forward_vector, (p_chain[HEAD] - p_chain[TAIL]).normalized(), Quaternion()).inverse();
 		}
 
 		// Forwards.
 		first = true;
+		last_rot_inv = Quaternion();
 		for (int i = 0; i < p_joints.size(); i++) {
 			ManyBoneIK3DSolverInfo *solver_info = p_joints[i]->solver_info;
 			if (!solver_info || Math::is_zero_approx(solver_info->length)) {
@@ -103,12 +106,13 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Ma
 				new_destination = p_joints[i]->limitation->solve(
 					new_origin,
 					new_destination,
-					current_space,
+					last_rot_inv,
 					solver_info->forward_vector,
 					solver_info->length);
 				new_destination = limit_length(new_origin, new_destination, solver_info->length);
 			}
 			p_chain.write[TAIL] = new_destination;
+			last_rot_inv = get_from_to_rotation(solver_info->forward_vector, (p_chain[HEAD] - p_chain[TAIL]).normalized(), Quaternion()).inverse();
 		}
 
 		distance_to_target_sq = p_chain[p_chain.size() - 1].distance_squared_to(p_destination);

@@ -40,9 +40,9 @@ void CCDIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Man
 		// Backwards.
 		int end = -1;
 		for (int i = p_joints.size() - 1; i >= 0; i--) {
-			ManyBoneIK3DSolverInfo *solver_info = p_joints[i]->solver_info;
-			if (!solver_info || Math::is_zero_approx(solver_info->length)) {
-				continue; 
+			ManyBoneIK3DSolverInfo *check = p_joints[i]->solver_info;
+			if (!check || Math::is_zero_approx(check->length)) {
+				continue;
 			}
 
 			const int REF_HEAD = i;
@@ -52,11 +52,13 @@ void CCDIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Man
 			Vector3 to_vec = p_destination - p_chain[REF_HEAD];
 			Vector3 head_to_end = p_chain[end] - p_chain[REF_HEAD];
 			Quaternion to_rot = Quaternion(head_to_end.normalized(), to_vec.normalized());
+			Quaternion last_rot_inv;
 			for (int j = p_chain.size() - 1; j > i; j--) {
 				Vector3 head_to_any_joint = p_chain[j] - p_chain[REF_HEAD];
+				const int TAIL = j;
 				const int HEAD = j - 1;
 
-				ManyBoneIK3DSolverInfo *current_solver_info = p_joints[HEAD]->solver_info;
+				ManyBoneIK3DSolverInfo *solver_info = p_joints[HEAD]->solver_info;
 				Quaternion current_space = (p_space * p_skeleton->get_bone_global_pose(p_joints[HEAD]->bone)).basis.get_rotation_quaternion();
 
 				Vector3 new_origin = p_chain[HEAD];
@@ -71,13 +73,14 @@ void CCDIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, Vector<Man
 					new_destination = p_joints[HEAD]->limitation->solve(
 						new_origin,
 						new_destination,
-						current_space,
-						current_solver_info->forward_vector,
-						current_solver_info->length);
-						new_destination = limit_length(new_origin, new_destination, solver_info->length);
+						last_rot_inv,
+						solver_info->forward_vector,
+						solver_info->length);
+					new_destination = limit_length(new_origin, new_destination, solver_info->length);
 				}
 
-				p_chain.write[j] = new_destination;
+				p_chain.write[TAIL] = new_destination;
+				last_rot_inv = get_from_to_rotation(solver_info->forward_vector, (p_chain[HEAD] - p_chain[TAIL]).normalized(), Quaternion()).inverse();
 			}
 		}
 
