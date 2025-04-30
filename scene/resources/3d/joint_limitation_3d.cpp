@@ -31,9 +31,9 @@
 #include "joint_limitation_3d.h"
 #include "scene/3d/skeleton_modifier_3d.h"
 
-Quaternion JointLimitation3D::_make_space(const Quaternion &p_rest_on_parent_global_pose, const Vector3 &p_local_forward_vector) const {
+Quaternion JointLimitation3D::_make_space(const Vector3 &p_local_forward_vector) const {
 	// The default is to interpret the forward vector as the +Y axis.
-	Vector3 axis_y = p_rest_on_parent_global_pose.xform(p_local_forward_vector);
+	Vector3 axis_y = p_local_forward_vector.normalized();
 	Vector3 axis_x = axis_y.get_any_perpendicular();
 	Vector3 axis_z = axis_y.cross(axis_x);
 	return Basis(axis_x, axis_y, axis_z).get_rotation_quaternion();
@@ -50,7 +50,7 @@ Vector3 JointLimitation3D::solve(
 			const Vector3 &p_local_forward_vector,
 			const double p_length
 		) const {
-	Quaternion space = _make_space(p_rest_on_parent_global_pose, p_local_forward_vector);
-	Vector3 dir = space.xform(p_rest_on_parent_global_pose.xform_inv((p_global_destination - p_global_origin).normalized()));
-	return p_global_origin + p_rest_on_parent_global_pose.xform(space.xform_inv(_solve(dir))) * p_length;
+	Quaternion space = _make_space(p_local_forward_vector);
+	Vector3 dir = space.xform((p_global_destination - p_global_origin).normalized());
+	return p_global_origin + space.xform_inv(_solve(dir)) * p_length;
 }

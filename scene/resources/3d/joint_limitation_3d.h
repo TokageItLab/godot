@@ -37,7 +37,7 @@ class JointLimitation3D : public Resource {
 
 protected:
 	// Define temporary space based on rest and forward vector.
-	virtual Quaternion _make_space(const Quaternion &p_rest_on_parent_global_pose, const Vector3 &p_local_forward_vector) const;
+	virtual Quaternion _make_space(const Vector3 &p_local_forward_vector) const;
 
 	// Directions are normalized vector from Vector(0, 0, 0). Space is defined by _make_space(), must return normalized vector.
 	virtual Vector3 _solve(const Vector3 &p_direction) const;
