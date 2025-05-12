@@ -250,7 +250,7 @@ Quaternion SkeletonModifier3D::get_local_pose_rotation(Skeleton3D *p_skeleton, i
 	if (parent < 0) {
 		return p_global_pose_rotation;
 	}
-	return p_skeleton->get_bone_global_pose(parent).basis.orthonormalized().inverse() * p_global_pose_rotation;
+	return (p_skeleton->get_bone_global_pose(parent).basis.get_rotation_quaternion().inverse() * p_global_pose_rotation).normalized();
 }
 
 Quaternion SkeletonModifier3D::get_from_to_rotation(const Vector3 &p_from, const Vector3 &p_to, const Quaternion &p_prev_rot) {
@@ -266,6 +266,23 @@ Quaternion SkeletonModifier3D::get_from_to_rotation(const Vector3 &p_from, const
 		angle = 0.0;
 	}
 	return Quaternion(axis.normalized(), angle);
+}
+
+Quaternion SkeletonModifier3D::get_from_to_rotation_by_axis(const Vector3 &p_from, const Vector3 &p_to, const Vector3 &p_axis) {
+	const double ALMOST_ONE = 1.0 - CMP_EPSILON;
+	double dot = p_from.dot(p_to);
+	if (dot > ALMOST_ONE) {
+		return Quaternion();
+	}
+	if (dot < -ALMOST_ONE) {
+		return Quaternion(p_axis, Math::PI);
+	}
+	double angle = p_from.angle_to(p_to);
+	Vector3 cross = p_from.cross(p_to);
+	if (signbit(cross.dot(p_axis))) {
+		angle = -angle;
+	}
+	return Quaternion(p_axis, angle);
 }
 
 Vector3 SkeletonModifier3D::snap_vector_to_plane(const Vector3 &p_plane_normal, const Vector3 &p_vector) {
