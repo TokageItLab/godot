@@ -288,6 +288,7 @@ private:
 	mutable AHashMap<StringName, AHashMap<StringName, StringName>> property_parent_map;
 	mutable AHashMap<ObjectID, StringName> property_reference_map;
 	mutable AHashMap<StringName, Pair<Variant, bool>> property_map; // Property value and read-only flag.
+	mutable AHashMap<StringName, AnimationNode::NodeTimeInfo> time_info_map; // Time info must be double, it can't use property_map as Variant.
 
 	mutable bool properties_dirty = true;
 
@@ -350,6 +351,10 @@ public:
 	real_t get_connection_activity(const StringName &p_path, int p_connection) const;
 
 	uint64_t get_last_process_pass() const;
+
+	double get_animation_node_time_length(const StringName &p_path) const;
+	double get_animation_node_time_position(const StringName &p_path) const;
+	double get_animation_node_time_delta(const StringName &p_path) const;
 
 	AnimationTree();
 	~AnimationTree();

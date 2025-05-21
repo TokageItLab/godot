@@ -44,10 +44,6 @@ void AnimationNode::get_parameter_list(List<PropertyInfo> *r_list) const {
 			r_list->push_back(PropertyInfo::from_dict(d));
 		}
 	}
-
-	r_list->push_back(PropertyInfo(Variant::FLOAT, current_length, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_READ_ONLY));
-	r_list->push_back(PropertyInfo(Variant::FLOAT, current_position, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_READ_ONLY));
-	r_list->push_back(PropertyInfo(Variant::FLOAT, current_delta, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_READ_ONLY));
 }
 
 Variant AnimationNode::get_parameter_default_value(const StringName &p_parameter) const {
@@ -105,17 +101,21 @@ Variant AnimationNode::get_parameter(const StringName &p_name) const {
 }
 
 void AnimationNode::set_node_time_info(const NodeTimeInfo &p_node_time_info) {
-	set_parameter(current_length, p_node_time_info.length);
-	set_parameter(current_position, p_node_time_info.position);
-	set_parameter(current_delta, p_node_time_info.delta);
+	ERR_FAIL_NULL(process_state);
+	if (process_state->is_testing) {
+		return;
+	}
+	if (process_state->tree->time_info_map.has(node_state.base_path)) {
+		process_state->tree->time_info_map[node_state.base_path] = p_node_time_info;
+		return;
+	}
+	process_state->tree->time_info_map.insert_new(node_state.base_path, p_node_time_info);
 }
 
 AnimationNode::NodeTimeInfo AnimationNode::get_node_time_info() const {
-	NodeTimeInfo nti;
-	nti.length = get_parameter(current_length);
-	nti.position = get_parameter(current_position);
-	nti.delta = get_parameter(current_delta);
-	return nti;
+	ERR_FAIL_NULL_V(process_state, NodeTimeInfo());
+	ERR_FAIL_COND_V(!process_state->tree->time_info_map.has(node_state.base_path), NodeTimeInfo());
+	return process_state->tree->time_info_map[node_state.base_path];
 }
 
 void AnimationNode::get_child_nodes(List<ChildNode> *r_child_nodes) {
@@ -944,6 +944,30 @@ bool AnimationTree::_get(const StringName &p_name, Variant &r_ret) const {
 		return true;
 	}
 
+#ifndef DISABLE_DEPRECATED
+	String name = p_name;
+	PackedStringArray split = name.split("/");
+	StringName prop = split[split.size() - 1];
+	if (prop == "current_length") {
+		StringName path = name.left(-15);
+		if (time_info_map.has(path)) {
+			r_ret = time_info_map[path].length;
+			return true;
+		}
+	} else if (prop == "current_position") {
+		StringName path = name.left(-17);
+		if (time_info_map.has(path)) {
+			r_ret = time_info_map[path].position;
+			return true;
+		}
+	} else if (prop == "current_delta") {
+		StringName path = name.left(-14);
+		if (time_info_map.has(path)) {
+			r_ret = time_info_map[path].delta;
+			return true;
+		}
+	}
+#endif // DISABLE_DEPRECATED
 	return false;
 }
 
@@ -972,6 +996,21 @@ real_t AnimationTree::get_connection_activity(const StringName &p_path, int p_co
 	return activity[p_connection].activity;
 }
 
+double AnimationTree::get_animation_node_time_length(const StringName &p_path) const {
+	ERR_FAIL_COND_V(!time_info_map.has(p_path), 0);
+	return time_info_map[p_path].length;
+}
+
+double AnimationTree::get_animation_node_time_position(const StringName &p_path) const {
+	ERR_FAIL_COND_V(!time_info_map.has(p_path), 0);
+	return time_info_map[p_path].position;
+}
+
+double AnimationTree::get_animation_node_time_delta(const StringName &p_path) const {
+	ERR_FAIL_COND_V(!time_info_map.has(p_path), 0);
+	return time_info_map[p_path].delta;
+}
+
 void AnimationTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_tree_root", "animation_node"), &AnimationTree::set_root_animation_node);
 	ClassDB::bind_method(D_METHOD("get_tree_root"), &AnimationTree::get_root_animation_node);
@@ -981,6 +1020,10 @@ void AnimationTree::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_animation_player", "path"), &AnimationTree::set_animation_player);
 	ClassDB::bind_method(D_METHOD("get_animation_player"), &AnimationTree::get_animation_player);
+
+	ClassDB::bind_method(D_METHOD("get_animation_node_time_length", "path"), &AnimationTree::get_animation_node_time_length);
+	ClassDB::bind_method(D_METHOD("get_animation_node_time_position", "path"), &AnimationTree::get_animation_node_time_position);
+	ClassDB::bind_method(D_METHOD("get_animation_node_time_delta", "path"), &AnimationTree::get_animation_node_time_delta);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "tree_root", PROPERTY_HINT_RESOURCE_TYPE, "AnimationRootNode"), "set_tree_root", "get_tree_root");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "advance_expression_base_node", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Node"), "set_advance_expression_base_node", "get_advance_expression_base_node");

@@ -12,6 +12,28 @@
 		<link title="Third Person Shooter (TPS) Demo">https://godotengine.org/asset-library/asset/2710</link>
 	</tutorials>
 	<methods>
+		<method name="get_animation_node_time_delta" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="path" type="StringName" />
+			<description>
+				Returns the last processed delta in [AnimationNode] instance of [param path].
+			</description>
+		</method>
+		<method name="get_animation_node_time_length" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="path" type="StringName" />
+			<description>
+				Returns the last processed length in [AnimationNode] instance of [param path].
+				[b]Note:[/b] [AnimationNode]'s time length can be modified by changing animation or primary input port.
+			</description>
+		</method>
+		<method name="get_animation_node_time_position" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="path" type="StringName" />
+			<description>
+				Returns the last processed position in [AnimationNode] instance of [param path].
+			</description>
+		</method>
 		<method name="get_process_callback" qualifiers="const" deprecated="Use [member AnimationMixer.callback_mode_process] instead.">
 			<return type="int" enum="AnimationTree.AnimationProcessCallback" />
 			<description>
