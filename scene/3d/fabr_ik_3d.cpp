@@ -31,6 +31,7 @@
 #include "fabr_ik_3d.h"
 
 void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, ManyBoneIK3DSetting *p_setting, Vector<ManyBoneIK3DJointSetting *> &p_joints, Vector<Vector3> &p_chain, const Vector3 &p_destination, int p_max_iterations, real_t p_min_distance_squared) {
+	real_t angle_limit = Math::deg_to_rad(0.2);
 	real_t distance_to_target_sq = INFINITY;
 	int iteration_count = 0;
 
@@ -39,8 +40,6 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, ManyBoneI
 	}
 
 	while (distance_to_target_sq > p_min_distance_squared && iteration_count < p_max_iterations) {
-		iteration_count++;
-
 		// Backwards.
 		bool first = true;
 		for (int i = p_joints.size() - 1; i >= 0; i--) {
@@ -49,15 +48,15 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, ManyBoneI
 				continue;
 			}
 
-			const int HEAD = i;
-			const int TAIL = i + 1;
+			int HEAD = i;
+			int TAIL = i + 1;
 
 			if (first) {
-				p_setting->update_chain_coordinate(p_skeleton, TAIL, p_destination);
+				p_setting->update_chain_coordinate(p_skeleton, TAIL, p_destination, true, angle_limit);
 				first = false;
 			}
 
-			p_setting->update_chain_coordinate(p_skeleton, HEAD, limit_length(p_chain[TAIL], p_chain[HEAD], solver_info->length));
+			p_setting->update_chain_coordinate(p_skeleton, HEAD, limit_length(p_chain[TAIL], p_chain[HEAD], solver_info->length), true, angle_limit);
 		}
 
 		// Forwards.
@@ -68,15 +67,15 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, ManyBoneI
 				continue;
 			}
 
-			const int HEAD = i;
-			const int TAIL = i + 1;
+			int HEAD = i;
+			int TAIL = i + 1;
 
 			if (first) {
-				p_setting->update_chain_coordinate(p_skeleton, HEAD, p_skeleton->get_bone_global_pose(p_joints[i]->bone).origin, false);
+				p_setting->update_chain_coordinate(p_skeleton, HEAD, p_skeleton->get_bone_global_pose(p_joints[i]->bone).origin, false, angle_limit);
 				first = false;
 			}
 
-			p_setting->update_chain_coordinate(p_skeleton, TAIL, limit_length(p_chain[HEAD], p_chain[TAIL], solver_info->length), false);
+			p_setting->update_chain_coordinate(p_skeleton, TAIL, limit_length(p_chain[HEAD], p_chain[TAIL], solver_info->length), false, angle_limit);
 			// Limitation should be processed only in forward pass to prevent oscillation.
 			if (p_joints[HEAD]->rotation_axis != ROTATION_AXIS_ALL) {
 				p_setting->update_chain_coordinate(p_skeleton, TAIL, p_chain[HEAD] + p_joints[HEAD]->get_projected_rotation(solver_info->current_grest, p_chain[TAIL] - p_chain[HEAD]), false);
@@ -85,9 +84,9 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, ManyBoneI
 				p_setting->update_chain_coordinate(p_skeleton, TAIL, p_chain[HEAD] + p_joints[HEAD]->get_limited_rotation(solver_info->current_grest, p_chain[TAIL] - p_chain[HEAD]), false);
 			}
 		}
-		p_setting->cache_current_joint_rotations(p_skeleton);
-
 		distance_to_target_sq = p_chain[p_chain.size() - 1].distance_squared_to(p_destination);
+		p_setting->cache_current_joint_rotations(p_skeleton);
+		iteration_count++;
 	}
 
 	// Apply the rotation to the bones.
@@ -96,6 +95,6 @@ void FABRIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, ManyBoneI
 		if (!solver_info || Math::is_zero_approx(solver_info->length)) {
 			continue;
 		}
-		p_skeleton->set_bone_pose_rotation(p_joints[i]->bone, get_local_pose_rotation(p_skeleton, p_joints[i]->bone, solver_info->current_gpose));
+		p_skeleton->set_bone_pose_rotation(p_joints[i]->bone, solver_info->current_lpose);
 	}
 }

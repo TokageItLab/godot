@@ -57,11 +57,17 @@ public:
 	};
 
 	struct ManyBoneIK3DSolverInfo {
+		Quaternion current_lpose;
+		Quaternion current_lrest;
 		Quaternion current_gpose;
 		Quaternion current_grest;
-		Vector3 current_vector;
-		Vector3 forward_vector;
+		Vector3 current_vector; // Global so needs xfrom_inv by gpose or grest in the process.
+		Vector3 forward_vector; // Local.
 		float length = 0.0;
+
+		Quaternion get_current_relative_pose() {
+			return (current_lrest.inverse() * current_lpose).normalized();
+		}
 	};
 
 	struct ManyBoneIK3DJointSetting {
@@ -165,46 +171,63 @@ public:
 			}
 			if (is_straight) {
 				Vector3 to_target = (p_destination - chain[0]);
-				float proj = to_target.dot(chain_dir);
-				float total_length = 0.0f;
+				real_t proj = to_target.dot(chain_dir);
+				real_t total_length = 0;
 				for (int i = 0; i < joints.size(); i++) {
 					if (joints[i]->solver_info) {
 						total_length += joints[i]->solver_info->length;
 					}
 				}
-				ret = proj >= 0.0f && proj <= total_length && (to_target.normalized().is_equal_approx(chain_dir));
+				ret = proj >= 0 && proj <= total_length && (to_target.normalized().is_equal_approx(chain_dir));
 			}
 			return ret;
 		}
 
-		void update_chain_coordinate(Skeleton3D *p_skeleton, int p_index, const Vector3 &p_position, bool p_backward = true) {
+		void update_chain_coordinate(Skeleton3D *p_skeleton, int p_index, const Vector3 &p_position, bool p_backward = true, real_t p_angle_limit = Math::PI) {
 			// Don't update if the position is same as the current position.
 			if (Math::is_zero_approx(chain[p_index].distance_squared_to(p_position))) {
 				return;
 			}
 
 			// Prevent flipping.
+			Vector3 result = p_position;
 			if (p_backward) {
-				const int PREV = p_index - 1;
-				if (PREV >= 0 && PREV < joints.size()) {
-					ManyBoneIK3DSolverInfo *solver_info = joints[PREV]->solver_info;
-					if (solver_info && Math::is_equal_approx((float)solver_info->current_vector.dot((p_position - chain[PREV]).normalized()), -1.0f)) {
-						chain.write[p_index] = chain[PREV] + solver_info->current_vector * solver_info->length;
-						return;
+				int HEAD = p_index - 1;
+				int TAIL = p_index;
+				if (HEAD >= 0 && HEAD < joints.size()) {
+					ManyBoneIK3DSolverInfo *solver_info = joints[HEAD]->solver_info;
+					if (solver_info) {
+						Vector3 old_head_to_tail = solver_info->current_vector;
+						Vector3 new_head_to_tail = (result - chain[HEAD]).normalized();
+						if (Math::is_equal_approx((float)old_head_to_tail.dot(new_head_to_tail), -1.0f)) {
+							chain.write[TAIL] = chain[HEAD] + old_head_to_tail * solver_info->length; // Revert.
+							return; // No change, cache is not needed.
+						} else if (p_angle_limit < Math::PI){
+							new_head_to_tail = rotate_toward(old_head_to_tail, new_head_to_tail, p_angle_limit);
+							result = chain[HEAD] + new_head_to_tail * solver_info->length;
+						}
 					}
 				}
 			} else {
-				const int PREV = p_index + 1;
-				if (PREV >= 0 && PREV < joints.size()) {
-					ManyBoneIK3DSolverInfo *solver_info = joints[p_index]->solver_info;
-					if (solver_info && Math::is_equal_approx((float)solver_info->current_vector.dot((chain[PREV] - p_position).normalized()), -1.0f)) {
-						chain.write[p_index] = chain[PREV] - solver_info->current_vector * solver_info->length;
-						return;
+				int HEAD = p_index;
+				int TAIL = p_index + 1;
+				if (TAIL >= 0 && TAIL < joints.size()) {
+					ManyBoneIK3DSolverInfo *solver_info = joints[HEAD]->solver_info;
+					Vector3 old_head_to_tail = solver_info->current_vector;
+					Vector3 new_head_to_tail = (chain[TAIL] - result).normalized();
+					if (solver_info) {
+						if (Math::is_equal_approx((float)old_head_to_tail.dot(new_head_to_tail), -1.0f)) {
+							chain.write[HEAD] = chain[TAIL] - old_head_to_tail * solver_info->length; // Revert.
+							return; // No change, cache is not needed.
+						} else if (p_angle_limit < Math::PI){
+							new_head_to_tail = rotate_toward(old_head_to_tail, new_head_to_tail, p_angle_limit);
+							result = chain[TAIL] - new_head_to_tail * solver_info->length;
+						}
 					}
 				}
 			}
 
-			chain.write[p_index] = p_position;
+			chain.write[p_index] = result;
 			cache_current_vector(p_skeleton, p_index);
 		}
 
@@ -223,8 +246,8 @@ public:
 
 		void cache_current_vectors(Skeleton3D *p_skeleton) {
 			for (int i = 0; i < joints.size(); i++) {
-				const int HEAD = i;
-				const int TAIL = i + 1;
+				int HEAD = i;
+				int TAIL = i + 1;
 				ManyBoneIK3DSolverInfo *solver_info = joints[HEAD]->solver_info;
 				if (!solver_info) {
 					continue;
@@ -245,9 +268,11 @@ public:
 				if (!solver_info) {
 					continue;
 				}
-				solver_info->current_grest = parent_gpose * p_skeleton->get_bone_rest(joints[i]->bone).basis.get_rotation_quaternion();
+				solver_info->current_lrest = p_skeleton->get_bone_rest(joints[i]->bone).basis.get_rotation_quaternion();
+				solver_info->current_grest = parent_gpose * solver_info->current_lrest;
 				solver_info->current_grest.normalize();
-				solver_info->current_gpose = p_skeleton->get_bone_global_pose(joints[i]->bone).basis.get_rotation_quaternion();
+				solver_info->current_lpose = p_skeleton->get_bone_pose(joints[i]->bone).basis.get_rotation_quaternion();
+				solver_info->current_gpose = parent_gpose * solver_info->current_lpose;
 				solver_info->current_gpose.normalize();
 				parent_gpose = solver_info->current_gpose;
 			}
@@ -263,23 +288,23 @@ public:
 			}
 
 			for (int i = 0; i < joints.size(); i++) {
-				const int HEAD = i;
-				const int TAIL = i + 1;
+				int HEAD = i;
 				ManyBoneIK3DSolverInfo *solver_info = joints[HEAD]->solver_info;
 				if (!solver_info) {
 					continue;
 				}
-				solver_info->current_grest = parent_gpose * p_skeleton->get_bone_rest(joints[HEAD]->bone).basis.get_rotation_quaternion();
+				solver_info->current_lrest = p_skeleton->get_bone_rest(joints[HEAD]->bone).basis.get_rotation_quaternion();
+				solver_info->current_grest = parent_gpose * solver_info->current_lrest;
 				solver_info->current_grest.normalize();
-				Quaternion current_wrest = solver_info->current_grest;
 				Vector3 from = solver_info->forward_vector;
-				Vector3 to = current_wrest.xform_inv((chain[TAIL] - chain[HEAD])).normalized();
+				Vector3 to = solver_info->current_grest.xform_inv(solver_info->current_vector).normalized();
 				if (joints[HEAD]->rotation_axis == ROTATION_AXIS_ALL) {
-					solver_info->current_gpose = solver_info->current_grest * Quaternion(from, to);
+					solver_info->current_lpose = solver_info->current_lrest * get_swing(Quaternion(from, to), solver_info->forward_vector);
 				} else {
 					// To stabilize rotation path especially nearely 180deg.
-					solver_info->current_gpose = solver_info->current_grest * get_from_to_rotation_by_axis(from, to, joints[HEAD]->get_rotation_axis_vector().normalized());
+					solver_info->current_lpose = solver_info->current_lrest * get_swing(get_from_to_rotation_by_axis(from, to, joints[HEAD]->get_rotation_axis_vector().normalized()), solver_info->forward_vector);
 				}
+				solver_info->current_gpose = parent_gpose * solver_info->current_lpose;
 				solver_info->current_gpose.normalize();
 				parent_gpose = solver_info->current_gpose;
 			}

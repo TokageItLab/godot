@@ -285,6 +285,30 @@ Quaternion SkeletonModifier3D::get_from_to_rotation_by_axis(const Vector3 &p_fro
 	return Quaternion(p_axis, angle);
 }
 
+Quaternion SkeletonModifier3D::get_swing(const Quaternion &p_rotation, const Vector3 &p_axis) {
+	if (p_axis.is_zero_approx()) {
+		return p_rotation;
+	}
+	Quaternion rot = p_rotation;
+	if (!rot.is_normalized()) {
+		rot.normalize();
+	}
+	Vector3 axis = p_axis.normalized();
+	const Vector3 v(rot.x, rot.y, rot.z);
+	const real_t proj_len = v.dot(axis);
+	const Vector3 twist_vec = axis * proj_len;
+	Quaternion twist(twist_vec.x, twist_vec.y, twist_vec.z, rot.w);
+	if (!twist.is_normalized()) {
+		if (Math::is_zero_approx(twist.length_squared())) {
+			return rot;
+		}
+		twist.normalize();
+	}
+	Quaternion swing = rot * twist.inverse();
+	swing.normalize();
+	return swing;
+}
+
 Vector3 SkeletonModifier3D::snap_vector_to_plane(const Vector3 &p_plane_normal, const Vector3 &p_vector) {
 	if (Math::is_zero_approx(p_plane_normal.length_squared())) {
 		return p_vector;
@@ -293,6 +317,14 @@ Vector3 SkeletonModifier3D::snap_vector_to_plane(const Vector3 &p_plane_normal, 
 	Vector3 normalized_vec = p_vector.normalized();
 	Vector3 normal = p_plane_normal.normalized();
 	return normalized_vec.slide(normal) * length;
+}
+
+Vector3 SkeletonModifier3D::rotate_toward(const Vector3 &p_from, const Vector3 &p_to, real_t p_angle_limit) {
+	real_t angle = p_from.angle_to(p_to);
+	if (Math::is_zero_approx(p_angle_limit * angle) || angle <= p_angle_limit) {
+		return p_to;
+	}
+	return p_from.slerp(p_to, p_angle_limit / angle);
 }
 
 SkeletonModifier3D::SkeletonModifier3D() {

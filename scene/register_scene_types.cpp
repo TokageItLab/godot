@@ -656,9 +656,6 @@ void register_scene_types() {
 	GDREGISTER_CLASS(RetargetModifier3D);
 	GDREGISTER_VIRTUAL_CLASS(JointLimitation3D);
 	GDREGISTER_CLASS(JointLimitationCone3D);
-	OS::get_singleton()->yield(); // may take time to init
-
-#ifndef PHYSICS_3D_DISABLED
 	GDREGISTER_CLASS(SpringBoneSimulator3D);
 	GDREGISTER_VIRTUAL_CLASS(SpringBoneCollision3D);
 	GDREGISTER_CLASS(SpringBoneCollisionSphere3D);
