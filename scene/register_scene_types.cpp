@@ -221,6 +221,7 @@
 #include "scene/3d/bone_constraint_3d.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/ccd_ik_3d.h"
+#include "scene/3d/chain_ik_3d.h"
 #include "scene/3d/convert_transform_modifier_3d.h"
 #include "scene/3d/copy_transform_modifier_3d.h"
 #include "scene/3d/cpu_particles_3d.h"
@@ -255,6 +256,7 @@
 #include "scene/3d/spring_bone_collision_sphere_3d.h"
 #include "scene/3d/spring_bone_simulator_3d.h"
 #include "scene/3d/sprite_3d.h"
+#include "scene/3d/two_bone_ik_3d.h"
 #include "scene/3d/visible_on_screen_notifier_3d.h"
 #include "scene/3d/voxel_gi.h"
 #include "scene/3d/world_environment.h"
@@ -673,6 +675,8 @@ void register_scene_types() {
 	GDREGISTER_CLASS(ConvertTransformModifier3D);
 	GDREGISTER_CLASS(AimModifier3D);
 	GDREGISTER_ABSTRACT_CLASS(ManyBoneIK3D);
+	GDREGISTER_CLASS(TwoBoneIK3D);
+	GDREGISTER_ABSTRACT_CLASS(ChainIK3D);
 	GDREGISTER_CLASS(FABRIK3D);
 	GDREGISTER_CLASS(CCDIK3D);
 	GDREGISTER_CLASS(JacobIK3D);

@@ -30,11 +30,11 @@
 
 #pragma once
 
-#include "scene/3d/many_bone_ik_3d.h"
+#include "scene/3d/chain_ik_3d.h"
 
-class CCDIK3D : public ManyBoneIK3D {
-	GDCLASS(CCDIK3D, ManyBoneIK3D);
+class CCDIK3D : public ChainIK3D {
+	GDCLASS(CCDIK3D, ChainIK3D);
 
 protected:
-	virtual void _solve_iteration(double p_delta, Skeleton3D *p_skeleton, ManyBoneIK3DSetting *p_setting, Vector<ManyBoneIK3DJointSetting *> &p_joints, Vector<Vector3> &p_chain, const Vector3 &p_destination, int p_joint_size, int p_chain_size) override;
+	virtual void _solve_iteration(double p_delta, Skeleton3D *p_skeleton, ChainIK3DSetting *p_setting, Vector<ManyBoneIK3DJointSetting *> &p_joints, Vector<Vector3> &p_chain, const Vector3 &p_destination, int p_joint_size, int p_chain_size) override;
 };
