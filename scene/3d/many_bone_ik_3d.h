@@ -37,6 +37,12 @@
 class ManyBoneIK3D : public SkeletonModifier3D {
 	GDCLASS(ManyBoneIK3D, SkeletonModifier3D);
 
+#ifdef TOOLS_ENABLED
+	bool saving = false;
+#endif //TOOLS_ENABLED
+
+	bool joints_dirty = false;
+
 public:
 	enum BoneDirection {
 		BONE_DIRECTION_PLUS_X,
@@ -159,6 +165,7 @@ protected:
 public:
 	// Helper.
 	static Quaternion get_local_pose_rotation(Skeleton3D *p_skeleton, int p_bone, const Quaternion &p_global_pose_rotation);
+	Vector3 get_bone_axis(int p_end_bone, BoneDirection p_direction) const;
 
 	// To process manually.
 	virtual void reset();

@@ -37,6 +37,8 @@ class ChainIK3D : public ManyBoneIK3D {
 
 public:
 	struct ChainIK3DSetting {
+		bool joints_dirty = false;
+
 		String root_bone_name;
 		int root_bone = -1;
 
@@ -48,8 +50,8 @@ public:
 		BoneDirection end_bone_direction = BONE_DIRECTION_FROM_PARENT;
 		float end_bone_length = 0.0;
 
-		NodePath target_node;
 		NodePath pole_node;
+		NodePath target_node;
 
 		Vector<ManyBoneIK3DJointSetting *> joints;
 		Vector<Vector3> chain;
@@ -57,7 +59,7 @@ public:
 		int chain_size_half = -1;
 
 		// To process.
-		bool simulation_dirty = false;
+		bool simulation_dirty = true;
 		Transform3D cached_space;
 
 		bool is_penetrated(const Vector3 &p_destination) {
@@ -200,7 +202,7 @@ public:
 				Vector3 to = solver_info->current_grest.xform_inv(solver_info->current_vector).normalized();
 				Quaternion prev = solver_info->current_lpose;
 				if (joints[HEAD]->rotation_axis == ROTATION_AXIS_ALL) {
-					solver_info->current_lpose = solver_info->current_lrest * get_swing(Quaternion(from, to), solver_info->forward_vector);
+					solver_info->current_lpose = solver_info->current_lrest * get_swing(Quaternion(from, to), from);
 				} else {
 					// To stabilize rotation path especially nearely 180deg.
 					solver_info->current_lpose = solver_info->current_lrest * get_from_to_rotation_by_axis(from, to, joints[HEAD]->get_rotation_axis_vector().normalized());
@@ -290,13 +292,12 @@ public:
 	BoneDirection get_end_bone_direction(int p_index) const;
 	void set_end_bone_length(int p_index, float p_length);
 	float get_end_bone_length(int p_index) const;
-	Vector3 get_end_bone_axis(int p_end_bone, BoneDirection p_direction) const; // Helper.
-
-	void set_target_node(int p_index, const NodePath &p_target_node);
-	NodePath get_target_node(int p_index) const;
 
 	void set_pole_node(int p_index, const NodePath &p_pole_node);
 	NodePath get_pole_node(int p_index) const;
+
+	void set_target_node(int p_index, const NodePath &p_target_node);
+	NodePath get_target_node(int p_index) const;
 
 	void set_setting_count(int p_count);
 	int get_setting_count() const;

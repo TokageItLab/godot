@@ -102,7 +102,8 @@ public:
 	static Quaternion get_from_to_rotation_by_axis(const Vector3 &p_from, const Vector3 &p_to, const Vector3 &p_axis);
 	static Quaternion get_swing(const Quaternion &p_rotation, const Vector3 &p_axis);
 	static Vector3 snap_vector_to_plane(const Vector3 &p_plane_normal, const Vector3 &p_vector);
-	static Vector3 rotate_toward(const Vector3 &p_from, const Vector3 &p_to, real_t p_angle_limit);
+	static double symmetrize_angle(double p_angle); // Helper to make angle 0->TAU become -PI->PI.
+	static double get_roll_angle(const Quaternion &p_rotation, const Vector3 &p_roll_axis);
 
 #ifdef TOOLS_ENABLED
 	virtual bool is_processed_on_saving() const { return false; }

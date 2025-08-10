@@ -57,10 +57,10 @@ bool ChainIK3D::_set(const StringName &p_path, const Variant &p_value) {
 			}
 		} else if (what == "extend_end_bone") {
 			set_extend_end_bone(which, p_value);
-		} else if (what == "target_node") {
-			set_target_node(which, p_value);
 		} else if (what == "pole_node") {
 			set_pole_node(which, p_value);
+		} else if (what == "target_node") {
+			set_target_node(which, p_value);
 		} else if (what == "joint_count") {
 			set_joint_count(which, p_value);
 		} else if (what == "joints") {
@@ -113,10 +113,10 @@ bool ChainIK3D::_get(const StringName &p_path, Variant &r_ret) const {
 			}
 		} else if (what == "extend_end_bone") {
 			r_ret = is_end_bone_extended(which);
-		} else if (what == "target_node") {
-			r_ret = get_target_node(which);
 		} else if (what == "pole_node") {
 			r_ret = get_pole_node(which);
+		} else if (what == "target_node") {
+			r_ret = get_target_node(which);
 		} else if (what == "joint_count") {
 			r_ret = get_joint_count(which);
 		} else if (what == "joints") {
@@ -160,9 +160,8 @@ void ChainIK3D::_get_property_list(List<PropertyInfo> *p_list) const {
 		props.push_back(PropertyInfo(Variant::BOOL, path + "extend_end_bone"));
 		props.push_back(PropertyInfo(Variant::INT, path + "end_bone/direction", PROPERTY_HINT_ENUM, "+X,-X,+Y,-Y,+Z,-Z,FromParent"));
 		props.push_back(PropertyInfo(Variant::FLOAT, path + "end_bone/length", PROPERTY_HINT_RANGE, "0,1,0.001,or_greater,suffix:m"));
-
-		props.push_back(PropertyInfo(Variant::NODE_PATH, path + "target_node"));
 		props.push_back(PropertyInfo(Variant::NODE_PATH, path + "pole_node"));
+		props.push_back(PropertyInfo(Variant::NODE_PATH, path + "target_node"));
 		props.push_back(PropertyInfo(Variant::INT, path + "joint_count", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_ARRAY, "Joints," + path + "joints/,static,const"));
 		for (int j = 0; j < settings[i]->joints.size(); j++) {
 			String joint_path = path + "joints/" + itos(j) + "/";
@@ -186,17 +185,21 @@ void ChainIK3D::_validate_dynamic_prop(PropertyInfo &p_property) const {
 		int which = split[1].to_int();
 
 		// Extended end bone option.
-		if (split[2] == "end_bone" && !is_end_bone_extended(which) && split.size() > 3) {
+		bool force_hide = false;
+		if (split[2] == "extend_end_bone" && get_end_bone(which) != -1) {
+			p_property.usage = PROPERTY_USAGE_NONE;
+			force_hide = true;
+		}
+		if (force_hide || (split[2] == "end_bone" && !is_end_bone_extended(which) && split.size() > 3)) {
 			p_property.usage = PROPERTY_USAGE_NONE;
 		}
-
+	}
+	if (split.size() > 3 && split[0] == "settings") {
+		int which = split[1].to_int();
+		int joint = split[3].to_int();
 		// Joints option.
 		if (split[2] == "joints" && split.size() > 4) {
-			int joint = split[3].to_int();
 			if (split[4] == "rotation_axis_vector" && get_joint_rotation_axis(which, joint) != ROTATION_AXIS_CUSTOM) {
-				p_property.usage = PROPERTY_USAGE_NONE;
-			}
-			if (split[4] == "limitation_rotation_offset" && get_joint_limitation(which, joint).is_null()) {
 				p_property.usage = PROPERTY_USAGE_NONE;
 			}
 		}
@@ -296,6 +299,7 @@ void ChainIK3D::set_end_bone(int p_index, int p_bone) {
 	if (changed) {
 		_update_joints(p_index);
 	}
+	notify_property_list_changed();
 }
 
 int ChainIK3D::get_end_bone(int p_index) const {
@@ -307,7 +311,14 @@ void ChainIK3D::set_extend_end_bone(int p_index, bool p_enabled) {
 	ERR_FAIL_INDEX(p_index, settings.size());
 	settings[p_index]->extend_end_bone = p_enabled;
 	settings[p_index]->simulation_dirty = true;
+	Skeleton3D *sk = get_skeleton();
+	if (sk && !settings[p_index]->joints.is_empty()) {
+		_validate_rotation_axis(sk, p_index, settings[p_index]->joints.size() - 1);
+	}
 	notify_property_list_changed();
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 bool ChainIK3D::is_end_bone_extended(int p_index) const {
@@ -319,6 +330,13 @@ void ChainIK3D::set_end_bone_direction(int p_index, BoneDirection p_bone_directi
 	ERR_FAIL_INDEX(p_index, settings.size());
 	settings[p_index]->end_bone_direction = p_bone_direction;
 	settings[p_index]->simulation_dirty = true;
+	Skeleton3D *sk = get_skeleton();
+	if (sk && !settings[p_index]->joints.is_empty()) {
+		_validate_rotation_axis(sk, p_index, settings[p_index]->joints.size() - 1);
+	}
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 ChainIK3D::BoneDirection ChainIK3D::get_end_bone_direction(int p_index) const {
@@ -330,35 +348,14 @@ void ChainIK3D::set_end_bone_length(int p_index, float p_length) {
 	ERR_FAIL_INDEX(p_index, settings.size());
 	settings[p_index]->end_bone_length = p_length;
 	settings[p_index]->simulation_dirty = true;
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 float ChainIK3D::get_end_bone_length(int p_index) const {
 	ERR_FAIL_INDEX_V(p_index, settings.size(), 0);
 	return settings[p_index]->end_bone_length;
-}
-
-Vector3 ChainIK3D::get_end_bone_axis(int p_end_bone, BoneDirection p_direction) const {
-	Vector3 axis;
-	if (p_direction == BONE_DIRECTION_FROM_PARENT) {
-		Skeleton3D *sk = get_skeleton();
-		if (sk) {
-			axis = sk->get_bone_rest(p_end_bone).basis.xform_inv(sk->get_bone_rest(p_end_bone).origin);
-			axis.normalize();
-		}
-	} else {
-		axis = get_vector_from_bone_axis(static_cast<BoneAxis>((int)p_direction));
-	}
-	return axis;
-}
-
-void ChainIK3D::set_target_node(int p_index, const NodePath &p_node_path) {
-	ERR_FAIL_INDEX(p_index, settings.size());
-	settings[p_index]->target_node = p_node_path;
-}
-
-NodePath ChainIK3D::get_target_node(int p_index) const {
-	ERR_FAIL_INDEX_V(p_index, settings.size(), NodePath());
-	return settings[p_index]->target_node;
 }
 
 void ChainIK3D::set_pole_node(int p_index, const NodePath &p_node_path) {
@@ -369,6 +366,16 @@ void ChainIK3D::set_pole_node(int p_index, const NodePath &p_node_path) {
 NodePath ChainIK3D::get_pole_node(int p_index) const {
 	ERR_FAIL_INDEX_V(p_index, settings.size(), NodePath());
 	return settings[p_index]->pole_node;
+}
+
+void ChainIK3D::set_target_node(int p_index, const NodePath &p_node_path) {
+	ERR_FAIL_INDEX(p_index, settings.size());
+	settings[p_index]->target_node = p_node_path;
+}
+
+NodePath ChainIK3D::get_target_node(int p_index) const {
+	ERR_FAIL_INDEX_V(p_index, settings.size(), NodePath());
+	return settings[p_index]->target_node;
 }
 
 void ChainIK3D::set_setting_count(int p_count) {
@@ -452,6 +459,9 @@ void ChainIK3D::set_joint_rotation_axis(int p_index, int p_joint, RotationAxis p
 	}
 	notify_property_list_changed();
 	settings[p_index]->simulation_dirty = true;
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 ChainIK3D::RotationAxis ChainIK3D::get_joint_rotation_axis(int p_index, int p_joint) const {
@@ -471,6 +481,9 @@ void ChainIK3D::set_joint_rotation_axis_vector(int p_index, int p_joint, Vector3
 		_validate_rotation_axis(sk, p_index, p_joint);
 	}
 	settings[p_index]->simulation_dirty = true;
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 Vector3 ChainIK3D::get_joint_rotation_axis_vector(int p_index, int p_joint) const {
@@ -544,11 +557,11 @@ void ChainIK3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_end_bone_length", "index", "length"), &ChainIK3D::set_end_bone_length);
 	ClassDB::bind_method(D_METHOD("get_end_bone_length", "index"), &ChainIK3D::get_end_bone_length);
 
-	ClassDB::bind_method(D_METHOD("set_target_node", "index", "target_node"), &ChainIK3D::set_target_node);
-	ClassDB::bind_method(D_METHOD("get_target_node", "index"), &ChainIK3D::get_target_node);
-
 	ClassDB::bind_method(D_METHOD("set_pole_node", "index", "pole_node"), &ChainIK3D::set_pole_node);
 	ClassDB::bind_method(D_METHOD("get_pole_node", "index"), &ChainIK3D::get_pole_node);
+
+	ClassDB::bind_method(D_METHOD("set_target_node", "index", "target_node"), &ChainIK3D::set_target_node);
+	ClassDB::bind_method(D_METHOD("get_target_node", "index"), &ChainIK3D::get_target_node);
 
 	ClassDB::bind_method(D_METHOD("set_setting_count", "count"), &ChainIK3D::set_setting_count);
 	ClassDB::bind_method(D_METHOD("get_setting_count"), &ChainIK3D::get_setting_count);
@@ -607,7 +620,7 @@ void ChainIK3D::_validate_rotation_axis(Skeleton3D *p_skeleton, int p_index, int
 	if (p_joint < settings[p_index]->joints.size() - 1) {
 		fwd = p_skeleton->get_bone_rest(settings[p_index]->joints[p_joint + 1]->bone).origin;
 	} else if (settings[p_index]->extend_end_bone) {
-		fwd = get_end_bone_axis(settings[p_index]->end_bone, settings[p_index]->end_bone_direction);
+		fwd = get_bone_axis(settings[p_index]->end_bone, settings[p_index]->end_bone_direction);
 		if (fwd.is_zero_approx()) {
 			return;
 		}
@@ -639,17 +652,20 @@ void ChainIK3D::_init_joints(Skeleton3D *p_skeleton, ChainIK3DSetting *setting) 
 		setting->chain.push_back(p_skeleton->get_bone_global_pose(setting->joints[i]->bone).origin);
 		bool last = i == setting->joints.size() - 1;
 		if (last && extend_end_bone && setting->end_bone_length > 0) {
-			Vector3 axis = get_end_bone_axis(setting->end_bone, setting->end_bone_direction);
+			Vector3 axis = get_bone_axis(setting->end_bone, setting->end_bone_direction);
 			if (axis.is_zero_approx()) {
-				continue; // Means always we need to check solver info, but `!solver_info` means that the bone is zero length, so IK should skip it in the all process.
+				continue;
 			}
 			setting->joints[i]->solver_info = memnew(ManyBoneIK3DSolverInfo);
 			setting->joints[i]->solver_info->forward_vector = snap_vector_to_plane(setting->joints[i]->get_rotation_axis_vector(), axis.normalized());
 			setting->joints[i]->solver_info->length = setting->end_bone_length;
 			setting->chain.push_back(p_skeleton->get_bone_global_pose(setting->joints[i]->bone).xform(axis * setting->end_bone_length));
 		} else if (!last) {
-			setting->joints[i]->solver_info = memnew(ManyBoneIK3DSolverInfo);
 			Vector3 axis = p_skeleton->get_bone_rest(setting->joints[i + 1]->bone).origin;
+			if (axis.is_zero_approx()) {
+				continue; // Means always we need to check solver info, but `!solver_info` means that the bone is zero length, so IK should skip it in the all process.
+			}
+			setting->joints[i]->solver_info = memnew(ManyBoneIK3DSolverInfo);
 			setting->joints[i]->solver_info->forward_vector = snap_vector_to_plane(setting->joints[i]->get_rotation_axis_vector(), axis.normalized());
 			setting->joints[i]->solver_info->length = axis.length();
 		}
@@ -673,6 +689,10 @@ void ChainIK3D::_init_joints(Skeleton3D *p_skeleton, ChainIK3DSetting *setting) 
 
 void ChainIK3D::_update_joints(int p_index) {
 	settings[p_index]->simulation_dirty = true;
+
+#ifdef TOOLS_ENABLED
+	update_gizmos(); // To clear invalid setting.
+#endif // TOOLS_ENABLED
 
 	Skeleton3D *sk = get_skeleton();
 	int current_bone = settings[p_index]->end_bone;
@@ -710,6 +730,14 @@ void ChainIK3D::_update_joints(int p_index) {
 	for (int i = 0; i < new_joints.size(); i++) {
 		set_joint_bone(p_index, i, new_joints[i]);
 	}
+
+	if (sk) {
+		_validate_rotation_axes(sk);
+	}
+
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 void ChainIK3D::_process_ik(Skeleton3D *p_skeleton, double p_delta) {

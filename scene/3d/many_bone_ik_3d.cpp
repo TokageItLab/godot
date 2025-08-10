@@ -100,7 +100,7 @@ void ManyBoneIK3D::_process_modification(double p_delta) {
 	if (!skeleton) {
 		return;
 	}
-	
+
 	_process_ik(skeleton, p_delta);
 }
 
@@ -114,6 +114,23 @@ Quaternion ManyBoneIK3D::get_local_pose_rotation(Skeleton3D *p_skeleton, int p_b
 		return p_global_pose_rotation;
 	}
 	return p_skeleton->get_bone_global_pose(parent).basis.get_rotation_quaternion().inverse() * p_global_pose_rotation;
+}
+
+Vector3 ManyBoneIK3D::get_bone_axis(int p_end_bone, BoneDirection p_direction) const {
+	if (!is_inside_tree()) {
+		return Vector3();
+	}
+	Vector3 axis;
+	if (p_direction == BONE_DIRECTION_FROM_PARENT) {
+		Skeleton3D *sk = get_skeleton();
+		if (sk) {
+			axis = sk->get_bone_rest(p_end_bone).basis.xform_inv(sk->get_bone_rest(p_end_bone).origin);
+			axis.normalize();
+		}
+	} else {
+		axis = get_vector_from_bone_axis(static_cast<BoneAxis>((int)p_direction));
+	}
+	return axis;
 }
 
 void ManyBoneIK3D::reset() {

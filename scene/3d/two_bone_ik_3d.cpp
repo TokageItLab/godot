@@ -43,9 +43,9 @@ bool TwoBoneIK3D::_set(const StringName &p_path, const Variant &p_value) {
 		} else if (what == "root_bone") {
 			set_root_bone(which, p_value);
 		} else if (what == "mid_bone_name") {
-			set_root_bone_name(which, p_value);
+			set_mid_bone_name(which, p_value);
 		} else if (what == "mid_bone") {
-			set_root_bone(which, p_value);
+			set_mid_bone(which, p_value);
 		} else if (what == "end_bone_name") {
 			set_end_bone_name(which, p_value);
 		} else if (what == "end_bone") {
@@ -59,12 +59,18 @@ bool TwoBoneIK3D::_set(const StringName &p_path, const Variant &p_value) {
 			} else {
 				return false;
 			}
+		} else if (what == "use_virtual_end") {
+			set_use_virtual_end(which, p_value);
 		} else if (what == "extend_end_bone") {
 			set_extend_end_bone(which, p_value);
-		} else if (what == "target_node") {
-			set_target_node(which, p_value);
 		} else if (what == "pole_node") {
 			set_pole_node(which, p_value);
+		} else if (what == "knuckle_direction") {
+			set_knuckle_direction(which, static_cast<KnuckleDirection>((int)p_value));
+		} else if (what == "knuckle_direction_vector") {
+			set_knuckle_direction_vector(which, p_value);
+		} else if (what == "target_node") {
+			set_target_node(which, p_value);
 		} else {
 			return false;
 		}
@@ -85,9 +91,9 @@ bool TwoBoneIK3D::_get(const StringName &p_path, Variant &r_ret) const {
 		} else if (what == "root_bone") {
 			r_ret = get_root_bone(which);
 		} else if (what == "mid_bone_name") {
-			r_ret = get_root_bone_name(which);
+			r_ret = get_mid_bone_name(which);
 		} else if (what == "mid_bone") {
-			r_ret = get_root_bone(which);
+			r_ret = get_mid_bone(which);
 		} else if (what == "end_bone_name") {
 			r_ret = get_end_bone_name(which);
 		} else if (what == "end_bone") {
@@ -101,12 +107,18 @@ bool TwoBoneIK3D::_get(const StringName &p_path, Variant &r_ret) const {
 			} else {
 				return false;
 			}
+		} else if (what == "use_virtual_end") {
+			r_ret = is_using_virtual_end(which);
 		} else if (what == "extend_end_bone") {
 			r_ret = is_end_bone_extended(which);
-		} else if (what == "target_node") {
-			r_ret = get_target_node(which);
 		} else if (what == "pole_node") {
 			r_ret = get_pole_node(which);
+		} else if (what == "knuckle_direction") {
+			r_ret = (int)get_knuckle_direction(which);
+		} else if (what == "knuckle_direction_vector") {
+			r_ret = get_knuckle_direction_vector(which);
+		} else if (what == "target_node") {
+			r_ret = get_target_node(which);
 		} else {
 			return false;
 		}
@@ -127,14 +139,18 @@ void TwoBoneIK3D::_get_property_list(List<PropertyInfo> *p_list) const {
 		String path = "settings/" + itos(i) + "/";
 		props.push_back(PropertyInfo(Variant::STRING, path + "root_bone_name", PROPERTY_HINT_ENUM_SUGGESTION, enum_hint));
 		props.push_back(PropertyInfo(Variant::INT, path + "root_bone", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR));
+		props.push_back(PropertyInfo(Variant::STRING, path + "mid_bone_name", PROPERTY_HINT_ENUM_SUGGESTION, enum_hint));
+		props.push_back(PropertyInfo(Variant::INT, path + "mid_bone", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR));
 		props.push_back(PropertyInfo(Variant::STRING, path + "end_bone_name", PROPERTY_HINT_ENUM_SUGGESTION, enum_hint));
 		props.push_back(PropertyInfo(Variant::INT, path + "end_bone", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR));
+		props.push_back(PropertyInfo(Variant::BOOL, path + "use_virtual_end"));
 		props.push_back(PropertyInfo(Variant::BOOL, path + "extend_end_bone"));
 		props.push_back(PropertyInfo(Variant::INT, path + "end_bone/direction", PROPERTY_HINT_ENUM, "+X,-X,+Y,-Y,+Z,-Z,FromParent"));
 		props.push_back(PropertyInfo(Variant::FLOAT, path + "end_bone/length", PROPERTY_HINT_RANGE, "0,1,0.001,or_greater,suffix:m"));
-
-		props.push_back(PropertyInfo(Variant::NODE_PATH, path + "target_node"));
 		props.push_back(PropertyInfo(Variant::NODE_PATH, path + "pole_node"));
+		props.push_back(PropertyInfo(Variant::INT, path + "knuckle_direction", PROPERTY_HINT_ENUM, "None,+X,-X,+Y,-Y,+Z,-Z,Custom"));
+		props.push_back(PropertyInfo(Variant::VECTOR3, path + "knuckle_direction_vector"));
+		props.push_back(PropertyInfo(Variant::NODE_PATH, path + "target_node"));
 	}
 
 	for (PropertyInfo &p : props) {
@@ -148,35 +164,29 @@ void TwoBoneIK3D::_validate_dynamic_prop(PropertyInfo &p_property) const {
 	if (split.size() > 2 && split[0] == "settings") {
 		int which = split[1].to_int();
 
-		// Extended end bone option.
-		if (split[2] == "end_bone" && !is_end_bone_extended(which) && split.size() > 3) {
+		bool force_hide = false;
+		if ((split[2] == "end_bone" || split[2] == "end_bone_name") && split.size() == 3 && is_using_virtual_end(which)) {
+			p_property.usage = PROPERTY_USAGE_NONE;
+		}
+		if (split[2] == "use_virtual_end" && get_mid_bone(which) == -1) {
+			p_property.usage = PROPERTY_USAGE_NONE;
+		}
+		if (split[2] == "extend_end_bone") {
+			if (is_using_virtual_end(which)) {
+				p_property.usage = PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY;
+			} else if (get_end_bone(which) == -1) {
+				p_property.usage = PROPERTY_USAGE_NONE;
+				force_hide = true;
+			}
+		}
+		if (force_hide || (split[2] == "end_bone" && !is_end_bone_extended(which) && split.size() > 3)) {
+			p_property.usage = PROPERTY_USAGE_NONE;
+		}
+
+		if (split[2] == "knuckle_direction_vector" && get_knuckle_direction(which) != KNUCKLE_DIRECTION_CUSTOM) {
 			p_property.usage = PROPERTY_USAGE_NONE;
 		}
 	}
-}
-
-void TwoBoneIK3D::set_max_iterations(int p_max_iterations) {
-	max_iterations = p_max_iterations;
-}
-
-int TwoBoneIK3D::get_max_iterations() const {
-	return max_iterations;
-}
-
-void TwoBoneIK3D::set_min_distance(real_t p_min_distance) {
-	min_distance = p_min_distance;
-}
-
-real_t TwoBoneIK3D::get_min_distance() const {
-	return min_distance;
-}
-
-void TwoBoneIK3D::set_angular_delta_limit(real_t p_angular_delta_limit) {
-	angular_delta_limit = p_angular_delta_limit;
-}
-
-real_t TwoBoneIK3D::get_angular_delta_limit() const {
-	return angular_delta_limit;
 }
 
 // Setting.
@@ -241,6 +251,7 @@ void TwoBoneIK3D::set_mid_bone(int p_index, int p_bone) {
 		if (settings[p_index]->mid_bone <= -1 || settings[p_index]->mid_bone >= sk->get_bone_count()) {
 			WARN_PRINT("Mid bone index out of range!");
 			settings[p_index]->mid_bone = -1;
+			settings[p_index]->use_virtual_end = false; // To sync inspector.
 		} else {
 			settings[p_index]->mid_bone_name = sk->get_bone_name(settings[p_index]->mid_bone);
 		}
@@ -248,6 +259,7 @@ void TwoBoneIK3D::set_mid_bone(int p_index, int p_bone) {
 	if (changed) {
 		_update_joints(p_index);
 	}
+	notify_property_list_changed();
 }
 
 int TwoBoneIK3D::get_mid_bone(int p_index) const {
@@ -285,18 +297,46 @@ void TwoBoneIK3D::set_end_bone(int p_index, int p_bone) {
 	if (changed) {
 		_update_joints(p_index);
 	}
+	notify_property_list_changed();
 }
 
 int TwoBoneIK3D::get_end_bone(int p_index) const {
 	ERR_FAIL_INDEX_V(p_index, settings.size(), -1);
-	return settings[p_index]->end_bone;
+	return settings[p_index]->get_end_bone();
+}
+
+void TwoBoneIK3D::set_use_virtual_end(int p_index, bool p_enabled) {
+	ERR_FAIL_INDEX(p_index, settings.size());
+	bool changed = settings[p_index]->use_virtual_end != p_enabled;
+	settings[p_index]->use_virtual_end = p_enabled;
+	if (p_enabled) {
+		// To sync inspector.
+		settings[p_index]->extend_end_bone = true;
+	}
+	settings[p_index]->simulation_dirty = true;
+	if (changed) {
+		_update_joints(p_index);
+	}
+	notify_property_list_changed();
+}
+
+bool TwoBoneIK3D::is_using_virtual_end(int p_index) const {
+	ERR_FAIL_INDEX_V(p_index, settings.size(), false);
+	return settings[p_index]->use_virtual_end;
 }
 
 void TwoBoneIK3D::set_extend_end_bone(int p_index, bool p_enabled) {
 	ERR_FAIL_INDEX(p_index, settings.size());
 	settings[p_index]->extend_end_bone = p_enabled;
 	settings[p_index]->simulation_dirty = true;
+	Skeleton3D *sk = get_skeleton();
+	if (sk) {
+		_validate_knuckle_direction(sk, p_index);
+	}
 	notify_property_list_changed();
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 bool TwoBoneIK3D::is_end_bone_extended(int p_index) const {
@@ -308,6 +348,13 @@ void TwoBoneIK3D::set_end_bone_direction(int p_index, BoneDirection p_bone_direc
 	ERR_FAIL_INDEX(p_index, settings.size());
 	settings[p_index]->end_bone_direction = p_bone_direction;
 	settings[p_index]->simulation_dirty = true;
+	Skeleton3D *sk = get_skeleton();
+	if (sk) {
+		_validate_knuckle_direction(sk, p_index);
+	}
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 TwoBoneIK3D::BoneDirection TwoBoneIK3D::get_end_bone_direction(int p_index) const {
@@ -319,25 +366,14 @@ void TwoBoneIK3D::set_end_bone_length(int p_index, float p_length) {
 	ERR_FAIL_INDEX(p_index, settings.size());
 	settings[p_index]->end_bone_length = p_length;
 	settings[p_index]->simulation_dirty = true;
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 float TwoBoneIK3D::get_end_bone_length(int p_index) const {
 	ERR_FAIL_INDEX_V(p_index, settings.size(), 0);
 	return settings[p_index]->end_bone_length;
-}
-
-Vector3 TwoBoneIK3D::get_end_bone_axis(int p_end_bone, BoneDirection p_direction) const {
-	Vector3 axis;
-	if (p_direction == BONE_DIRECTION_FROM_PARENT) {
-		Skeleton3D *sk = get_skeleton();
-		if (sk) {
-			axis = sk->get_bone_rest(p_end_bone).basis.xform_inv(sk->get_bone_rest(p_end_bone).origin);
-			axis.normalize();
-		}
-	} else {
-		axis = get_vector_from_bone_axis(static_cast<BoneAxis>((int)p_direction));
-	}
-	return axis;
 }
 
 void TwoBoneIK3D::set_target_node(int p_index, const NodePath &p_node_path) {
@@ -358,6 +394,46 @@ void TwoBoneIK3D::set_pole_node(int p_index, const NodePath &p_node_path) {
 NodePath TwoBoneIK3D::get_pole_node(int p_index) const {
 	ERR_FAIL_INDEX_V(p_index, settings.size(), NodePath());
 	return settings[p_index]->pole_node;
+}
+
+void TwoBoneIK3D::set_knuckle_direction(int p_index, KnuckleDirection p_direction) {
+	ERR_FAIL_INDEX(p_index, settings.size());
+	settings[p_index]->knuckle_direction = p_direction;
+	settings[p_index]->simulation_dirty = true;
+	Skeleton3D *sk = get_skeleton();
+	if (sk) {
+		_validate_knuckle_direction(sk, p_index);
+	}
+	notify_property_list_changed();
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
+}
+
+TwoBoneIK3D::KnuckleDirection TwoBoneIK3D::get_knuckle_direction(int p_index) const {
+	ERR_FAIL_INDEX_V(p_index, settings.size(), KNUCKLE_DIRECTION_NONE);
+	return settings[p_index]->knuckle_direction;
+}
+
+void TwoBoneIK3D::set_knuckle_direction_vector(int p_index, const Vector3 &p_vector) {
+	ERR_FAIL_INDEX(p_index, settings.size());
+	if (settings[p_index]->knuckle_direction != KNUCKLE_DIRECTION_CUSTOM) {
+		return;
+	}
+	settings[p_index]->knuckle_direction_vector = p_vector;
+	settings[p_index]->simulation_dirty = true;
+	Skeleton3D *sk = get_skeleton();
+	if (sk) {
+		_validate_knuckle_direction(sk, p_index);
+	}
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
+}
+
+Vector3 TwoBoneIK3D::get_knuckle_direction_vector(int p_index) const {
+	ERR_FAIL_INDEX_V(p_index, settings.size(), Vector3());
+	return settings[p_index]->get_knuckle_direction_vector();
 }
 
 void TwoBoneIK3D::set_setting_count(int p_count) {
@@ -387,14 +463,12 @@ void TwoBoneIK3D::clear_settings() {
 	set_setting_count(0);
 }
 
-void TwoBoneIK3D::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_max_iterations", "max_iterations"), &TwoBoneIK3D::set_max_iterations);
-	ClassDB::bind_method(D_METHOD("get_max_iterations"), &TwoBoneIK3D::get_max_iterations);
-	ClassDB::bind_method(D_METHOD("set_min_distance", "min_distance"), &TwoBoneIK3D::set_min_distance);
-	ClassDB::bind_method(D_METHOD("get_min_distance"), &TwoBoneIK3D::get_min_distance);
-	ClassDB::bind_method(D_METHOD("set_angular_delta_limit", "angular_delta_limit"), &TwoBoneIK3D::set_angular_delta_limit);
-	ClassDB::bind_method(D_METHOD("get_angular_delta_limit"), &TwoBoneIK3D::get_angular_delta_limit);
+bool TwoBoneIK3D::is_valid(int p_index) const {
+	ERR_FAIL_INDEX_V(p_index, settings.size(), false);
+	return settings[p_index]->root_bone != -1 && settings[p_index]->mid_bone != -1 && settings[p_index]->is_end_valid() && settings[p_index]->root_joint.bone != -1 && settings[p_index]->mid_joint.bone != -1;
+}
 
+void TwoBoneIK3D::_bind_methods() {
 	// Setting.
 	ClassDB::bind_method(D_METHOD("set_root_bone_name", "index", "bone_name"), &TwoBoneIK3D::set_root_bone_name);
 	ClassDB::bind_method(D_METHOD("get_root_bone_name", "index"), &TwoBoneIK3D::get_root_bone_name);
@@ -411,6 +485,8 @@ void TwoBoneIK3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_end_bone", "index", "bone"), &TwoBoneIK3D::set_end_bone);
 	ClassDB::bind_method(D_METHOD("get_end_bone", "index"), &TwoBoneIK3D::get_end_bone);
 
+	ClassDB::bind_method(D_METHOD("set_use_virtual_end", "index", "enabled"), &TwoBoneIK3D::set_use_virtual_end);
+	ClassDB::bind_method(D_METHOD("is_using_virtual_end", "index"), &TwoBoneIK3D::is_using_virtual_end);
 	ClassDB::bind_method(D_METHOD("set_extend_end_bone", "index", "enabled"), &TwoBoneIK3D::set_extend_end_bone);
 	ClassDB::bind_method(D_METHOD("is_end_bone_extended", "index"), &TwoBoneIK3D::is_end_bone_extended);
 	ClassDB::bind_method(D_METHOD("set_end_bone_direction", "index", "bone_direction"), &TwoBoneIK3D::set_end_bone_direction);
@@ -418,20 +494,31 @@ void TwoBoneIK3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_end_bone_length", "index", "length"), &TwoBoneIK3D::set_end_bone_length);
 	ClassDB::bind_method(D_METHOD("get_end_bone_length", "index"), &TwoBoneIK3D::get_end_bone_length);
 
-	ClassDB::bind_method(D_METHOD("set_target_node", "index", "target_node"), &TwoBoneIK3D::set_target_node);
-	ClassDB::bind_method(D_METHOD("get_target_node", "index"), &TwoBoneIK3D::get_target_node);
-
 	ClassDB::bind_method(D_METHOD("set_pole_node", "index", "pole_node"), &TwoBoneIK3D::set_pole_node);
 	ClassDB::bind_method(D_METHOD("get_pole_node", "index"), &TwoBoneIK3D::get_pole_node);
+
+	ClassDB::bind_method(D_METHOD("set_knuckle_direction", "index", "direction"), &TwoBoneIK3D::set_knuckle_direction);
+	ClassDB::bind_method(D_METHOD("get_knuckle_direction", "index"), &TwoBoneIK3D::get_knuckle_direction);
+	ClassDB::bind_method(D_METHOD("set_knuckle_direction_vector", "index", "vector"), &TwoBoneIK3D::set_knuckle_direction_vector);
+	ClassDB::bind_method(D_METHOD("get_knuckle_direction_vector", "index"), &TwoBoneIK3D::get_knuckle_direction_vector);
+
+	ClassDB::bind_method(D_METHOD("set_target_node", "index", "target_node"), &TwoBoneIK3D::set_target_node);
+	ClassDB::bind_method(D_METHOD("get_target_node", "index"), &TwoBoneIK3D::get_target_node);
 
 	ClassDB::bind_method(D_METHOD("set_setting_count", "count"), &TwoBoneIK3D::set_setting_count);
 	ClassDB::bind_method(D_METHOD("get_setting_count"), &TwoBoneIK3D::get_setting_count);
 	ClassDB::bind_method(D_METHOD("clear_settings"), &TwoBoneIK3D::clear_settings);
 
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_iterations", PROPERTY_HINT_RANGE, "0,100,or_greater"), "set_max_iterations", "get_max_iterations");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "min_distance", PROPERTY_HINT_RANGE, "0,1,0.01,or_greater"), "set_min_distance", "get_min_distance");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "angular_delta_limit", PROPERTY_HINT_RANGE, "0,180,0.01,radians_as_degrees"), "set_angular_delta_limit", "get_angular_delta_limit");
 	ADD_ARRAY_COUNT("Settings", "setting_count", "set_setting_count", "get_setting_count", "settings/");
+
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_NONE);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_PLUS_X);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_MINUS_X);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_PLUS_Y);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_MINUS_Y);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_PLUS_Z);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_MINUS_Z);
+	BIND_ENUM_CONSTANT(KNUCKLE_DIRECTION_CUSTOM);
 }
 
 void TwoBoneIK3D::_validate_bone_names() {
@@ -457,32 +544,257 @@ void TwoBoneIK3D::_validate_bone_names() {
 	}
 }
 
+void TwoBoneIK3D::_validate_knuckle_directions(Skeleton3D *p_skeleton) const {
+	for (int i = 0; i < settings.size(); i++) {
+		_validate_knuckle_direction(p_skeleton, i);
+	}
+}
+
+void TwoBoneIK3D::_validate_knuckle_direction(Skeleton3D *p_skeleton, int p_index) const {
+	TwoBoneIK3DSetting *setting = settings[p_index];
+	KnuckleDirection dir = setting->knuckle_direction;
+	if (!is_valid(p_index) || dir == KNUCKLE_DIRECTION_NONE) {
+		return;
+	}
+	Vector3 kv = get_knuckle_direction_vector(p_index).normalized();
+	Vector3 fwd;
+
+	// End bone.
+	int valid_end_bone = setting->get_end_bone();
+	Vector3 axis = get_bone_axis(valid_end_bone, setting->end_bone_direction);
+	Vector3 global_rest_origin;
+	if (setting->extend_end_bone && setting->end_bone_length > 0 && !axis.is_zero_approx()) {
+		global_rest_origin = p_skeleton->get_bone_global_rest(valid_end_bone).xform(axis * setting->end_bone_length);
+	} else {
+		// Shouldn't be using virtual end.
+		global_rest_origin = p_skeleton->get_bone_global_rest(valid_end_bone).origin;
+	}
+
+	// Mid bone.
+	axis = global_rest_origin - p_skeleton->get_bone_global_rest(setting->mid_bone).origin;
+	if (!axis.is_zero_approx()) {
+		fwd = p_skeleton->get_bone_global_rest(setting->mid_bone).basis.get_rotation_quaternion().xform_inv(axis).normalized();
+	} else {
+		return;
+	}
+
+	if (Math::is_equal_approx(Math::abs(kv.dot(fwd)), 1)) {
+		WARN_PRINT_ED("Setting: " + itos(p_index) + ": Knuckle direction and forward vectors are colinear. This is not advised as it may cause unwanted rotation.");
+	}
+}
+
 void TwoBoneIK3D::_make_all_joints_dirty() {
-	//
+	for (int i = 0; i < settings.size(); i++) {
+		_update_joints(i);
+	}
 }
 
 void TwoBoneIK3D::_init_joints(Skeleton3D *p_skeleton, TwoBoneIK3DSetting *setting) {
-	//
+	setting->cached_space = p_skeleton->get_global_transform();
+	if (!setting->simulation_dirty) {
+		return;
+	}
+	setting->root_pos = Vector3();
+	setting->mid_pos = Vector3();
+	setting->end_pos = Vector3();
+	if (setting->root_joint.solver_info) {
+		memdelete(setting->root_joint.solver_info);
+		setting->root_joint.solver_info = nullptr;
+	}
+	if (setting->mid_joint.solver_info) {
+		memdelete(setting->mid_joint.solver_info);
+		setting->mid_joint.solver_info = nullptr;
+	}
+	if (setting->root_bone == -1 || setting->mid_bone == -1 || !setting->is_end_valid() || setting->root_joint.bone == -1 || setting->mid_joint.bone == -1) {
+		return;
+	}
+	bool extend_end_bone = setting->extend_end_bone && setting->end_bone_length > 0;
+
+	// End bone.
+	int valid_end_bone = setting->get_end_bone();
+	Vector3 axis = get_bone_axis(valid_end_bone, setting->end_bone_direction);
+	Vector3 global_rest_origin;
+	if (extend_end_bone && setting->end_bone_length > 0 && !axis.is_zero_approx()) {
+		setting->end_pos = p_skeleton->get_bone_global_pose(valid_end_bone).xform(axis * setting->end_bone_length);
+		global_rest_origin = p_skeleton->get_bone_global_rest(valid_end_bone).xform(axis * setting->end_bone_length);
+	} else {
+		// Shouldn't be using virtual end.
+		setting->end_pos = p_skeleton->get_bone_global_pose(valid_end_bone).origin;
+		global_rest_origin = p_skeleton->get_bone_global_rest(valid_end_bone).origin;
+	}
+
+	// Mid bone.
+	axis = global_rest_origin - p_skeleton->get_bone_global_rest(setting->mid_bone).origin;
+	global_rest_origin = p_skeleton->get_bone_global_rest(setting->mid_bone).origin;
+	if (!axis.is_zero_approx()) {
+		setting->mid_pos = p_skeleton->get_bone_global_pose(setting->mid_bone).origin;
+		setting->mid_joint.solver_info = memnew(ManyBoneIK3DSolverInfo);
+		setting->mid_joint.solver_info->forward_vector = p_skeleton->get_bone_global_rest(setting->mid_bone).basis.get_rotation_quaternion().xform_inv(axis).normalized();
+		setting->mid_joint.solver_info->length = axis.length();
+	} else {
+		return;
+	}
+
+	// Root bone.
+	axis = global_rest_origin - p_skeleton->get_bone_global_rest(setting->root_bone).origin;
+	global_rest_origin = p_skeleton->get_bone_global_rest(setting->root_bone).origin;
+	if (!axis.is_zero_approx()) {
+		setting->root_pos = p_skeleton->get_bone_global_pose(setting->root_bone).origin;
+		setting->root_joint.solver_info = memnew(ManyBoneIK3DSolverInfo);
+		setting->root_joint.solver_info->forward_vector = p_skeleton->get_bone_global_rest(setting->root_bone).basis.get_rotation_quaternion().xform_inv(axis).normalized();
+		setting->root_joint.solver_info->length = axis.length();
+	} else if (setting->mid_joint.solver_info) {
+		memdelete(setting->mid_joint.solver_info);
+		setting->mid_joint.solver_info = nullptr;
+		return;
+	}
+
+	setting->init_current_joint_rotations(p_skeleton);
+
+	real_t total_length = setting->root_joint.solver_info->length + setting->mid_joint.solver_info->length;
+	setting->cached_length_sq = total_length * total_length;
+
+	setting->simulation_dirty = false;
 }
 
 void TwoBoneIK3D::_update_joints(int p_index) {
-	//
+	settings[p_index]->simulation_dirty = true;
+	settings[p_index]->root_joint.bone = -1;
+	settings[p_index]->mid_joint.bone = -1;
+
+#ifdef TOOLS_ENABLED
+	update_gizmos(); // To clear invalid setting.
+#endif // TOOLS_ENABLED
+
+	Skeleton3D *sk = get_skeleton();
+	if (!sk || settings[p_index]->root_bone == -1 || settings[p_index]->mid_bone == -1 || !settings[p_index]->is_end_valid()) {
+		return;
+	}
+
+	// Validation for mid bone.
+	int parent_bone = settings[p_index]->root_bone;
+	int current_bone = settings[p_index]->mid_bone;
+	bool valid = false;
+	while (current_bone >= 0) {
+		if (current_bone == parent_bone) {
+			valid = true;
+			break;
+		}
+		current_bone = sk->get_bone_parent(current_bone);
+	}
+	if (!valid) {
+		ERR_FAIL_EDMSG("Mid bone must be a child of root bone.");
+	}
+
+	// Validation for end bone.
+	if (!settings[p_index]->use_virtual_end) {
+		parent_bone = settings[p_index]->mid_bone;
+		current_bone = settings[p_index]->end_bone;
+		valid = false;
+		while (current_bone >= 0) {
+			if (current_bone == parent_bone) {
+				valid = true;
+				break;
+			}
+			current_bone = sk->get_bone_parent(current_bone);
+		}
+		if (!valid) {
+			ERR_FAIL_EDMSG("End bone must be a child of mid bone.");
+		}
+	}
+
+	// Copy bone indices to the joint settings, but name is not used in TwoBoneIK.
+	settings[p_index]->root_joint.bone = settings[p_index]->root_bone;
+	settings[p_index]->mid_joint.bone = settings[p_index]->mid_bone;
+
+	if (sk) {
+		_validate_knuckle_directions(sk);
+	}
+
+#ifdef TOOLS_ENABLED
+	update_gizmos();
+#endif // TOOLS_ENABLED
 }
 
 void TwoBoneIK3D::_process_ik(Skeleton3D *p_skeleton, double p_delta) {
-	//
+	for (int i = 0; i < settings.size(); i++) {
+		_init_joints(p_skeleton, settings[i]);
+		Node3D *target = Object::cast_to<Node3D>(get_node_or_null(settings[i]->target_node));
+		Node3D *pole = Object::cast_to<Node3D>(get_node_or_null(settings[i]->pole_node));
+		if (!target || !pole || !settings[i]->is_valid()) {
+			continue; // Abort.
+		}
+		Vector3 destination = settings[i]->cached_space.affine_inverse().xform(target->get_global_position());
+		Vector3 pole_destination = settings[i]->cached_space.affine_inverse().xform(pole->get_global_position());
+		settings[i]->cache_current_joint_rotations(p_skeleton, pole_destination); // Iterate over first to detect parent (outside of the chain) bone pose changes.
+		_process_joints(p_delta, p_skeleton, settings[i], destination, pole_destination);
+	}
 }
 
-void TwoBoneIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, TwoBoneIK3DSetting *p_setting, Vector<ManyBoneIK3DJointSetting *> &p_joints, Vector<Vector3> &p_chain, const Vector3 &p_destination, const Vector3 &p_pole_destination, bool p_use_pole) {
-	//
-}
+void TwoBoneIK3D::_process_joints(double p_delta, Skeleton3D *p_skeleton, TwoBoneIK3DSetting *p_setting, const Vector3 &p_destination, const Vector3 &p_pole_destination) {
+	// Solve the IK for this iteration.
+	Vector3 destination = p_destination;
 
-void TwoBoneIK3D::_solve_iteration_with_pole(double p_delta, Skeleton3D *p_skeleton, TwoBoneIK3DSetting *p_setting, Vector<ManyBoneIK3DJointSetting *> &p_joints, Vector<Vector3> &p_chain, const Vector3 &p_destination, int p_joint_size, int p_chain_size, const Vector3 &p_pole_destination, int p_joint_size_half, int p_chain_size_half) {
-	//
-}
+	// Make vector from root to destination.
+	p_setting->root_pos = p_skeleton->get_bone_global_pose(p_setting->root_joint.bone).origin; // New root position.
+	Vector3 root_to_destination = destination - p_setting->root_pos;
+	if (root_to_destination.is_zero_approx()) {
+		return; // Abort.
+	}
 
-void TwoBoneIK3D::_solve_iteration(double p_delta, Skeleton3D *p_skeleton, TwoBoneIK3DSetting *p_setting, Vector<ManyBoneIK3DJointSetting *> &p_joints, Vector<Vector3> &p_chain, const Vector3 &p_destination, int p_joint_size, int p_chain_size) {
-	//
+	real_t rd_len_sq = root_to_destination.length_squared();
+	// Compare the distance to the target with the length of the bones.
+	if (rd_len_sq >= p_setting->cached_length_sq) {
+		// Result is straight.
+		Vector3 rd_nrm = root_to_destination.normalized();
+		p_setting->mid_pos = p_setting->root_pos + rd_nrm * p_setting->root_joint.solver_info->length;
+		p_setting->end_pos = p_setting->mid_pos + rd_nrm * p_setting->mid_joint.solver_info->length;
+	} else {
+		// Check if the target can be reached by subtracting the lengths of the bones.
+		// If not, push out target to normal of the root bone sphere.
+		real_t sub = p_setting->root_joint.solver_info->length - p_setting->mid_joint.solver_info->length;
+		if (rd_len_sq < sub * sub) {
+			Vector3 push_nrm = (destination - p_setting->root_pos).normalized();
+			destination = p_setting->root_pos + push_nrm * Math::abs(sub);
+			root_to_destination = destination - p_setting->root_pos;
+		}
+
+		// End is snapped to the target.
+		p_setting->end_pos = destination;
+
+		// Result is bent, determine the mid position to respect the pole target.
+		// Mid-position should be a point of intersection of two circles.
+		real_t l_chain = root_to_destination.length();
+		Vector3 u = root_to_destination.normalized();
+		Vector3 pole_vec = get_normal(p_setting->root_pos, p_setting->end_pos, p_pole_destination);
+
+		// Circle1: center is the root, radius is the length of the root bone.
+		real_t r_root = p_setting->root_joint.solver_info->length;
+		// Circle2: center is the target, radius is the length of the mid bone.
+		real_t r_mid = p_setting->mid_joint.solver_info->length;
+
+		real_t a = (l_chain * l_chain + r_root * r_root - r_mid * r_mid) / (2.0 * l_chain);
+		real_t h2 = r_root * r_root - a * a;
+		if (h2 < 0) {
+			h2 = 0;
+		}
+		real_t h = Math::sqrt(h2);
+
+		Vector3 det_plus = (p_setting->root_pos + u * a) + pole_vec * h;
+		Vector3 det_minus = (p_setting->root_pos + u * a) - pole_vec * h;
+
+		// Pick the intersection that is closest to the pole target.
+		p_setting->mid_pos = p_pole_destination.distance_squared_to(det_plus) < p_pole_destination.distance_squared_to(det_minus) ? det_plus : det_minus;
+	}
+
+	// Update virtual bone rest/poses.
+	p_setting->cache_current_vectors(p_skeleton);
+	p_setting->cache_current_joint_rotations(p_skeleton, p_pole_destination);
+
+	// Apply the virtual bone rest/poses to the actual bones.
+	p_skeleton->set_bone_pose_rotation(p_setting->root_joint.bone, p_setting->root_joint.solver_info->current_lpose);
+	// Mid joint pose is relative to the root joint pose for the case root-mid or mid-end have more than 1 joints.
+	p_skeleton->set_bone_pose_rotation(p_setting->mid_joint.bone, get_local_pose_rotation(p_skeleton, p_setting->mid_joint.bone, p_setting->mid_joint.solver_info->current_gpose));
 }
 
 void TwoBoneIK3D::reset() {
