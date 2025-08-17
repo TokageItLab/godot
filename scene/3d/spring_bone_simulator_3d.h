@@ -48,28 +48,10 @@ class SpringBoneSimulator3D : public SkeletonModifier3D {
 	void _make_collisions_dirty();
 
 public:
-	enum BoneDirection {
-		BONE_DIRECTION_PLUS_X,
-		BONE_DIRECTION_MINUS_X,
-		BONE_DIRECTION_PLUS_Y,
-		BONE_DIRECTION_MINUS_Y,
-		BONE_DIRECTION_PLUS_Z,
-		BONE_DIRECTION_MINUS_Z,
-		BONE_DIRECTION_FROM_PARENT,
-	};
-
 	enum CenterFrom {
 		CENTER_FROM_WORLD_ORIGIN,
 		CENTER_FROM_NODE,
 		CENTER_FROM_BONE,
-	};
-
-	enum RotationAxis {
-		ROTATION_AXIS_X,
-		ROTATION_AXIS_Y,
-		ROTATION_AXIS_Z,
-		ROTATION_AXIS_ALL,
-		ROTATION_AXIS_CUSTOM,
 	};
 
 	struct SpringBone3DVerletInfo {
@@ -198,6 +180,17 @@ protected:
 	void _validate_rotation_axes(Skeleton3D *p_skeleton) const;
 	void _validate_rotation_axis(Skeleton3D *p_skeleton, int p_index, int p_joint) const;
 
+#ifndef DISABLE_DEPRECATED
+	SpringBoneSimulator3D::BoneDirection _get_end_bone_direction_bind_compat_XXXXX(int p_index);
+	void _set_end_bone_direction_bind_compat_XXXXX(int p_index, SpringBoneSimulator3D::BoneDirection p_bone_direction);
+	SpringBoneSimulator3D::RotationAxis _get_rotation_axis_bind_compat_XXXXX(int p_index) const;
+	void _set_rotation_axis_bind_compat_XXXXX(int p_index, SpringBoneSimulator3D::RotationAxis p_axis);
+	SpringBoneSimulator3D::RotationAxis _get_joint_rotation_axis_bind_compat_XXXXX(int p_index, int p_joint) const;
+	void _set_joint_rotation_axis_bind_compat_XXXXX(int p_index, int p_joint, SpringBoneSimulator3D::RotationAxis p_axis);
+
+	static void _bind_compatibility_methods();
+#endif // DISABLE_DEPRECATED
+
 public:
 	// Setting.
 	void set_root_bone_name(int p_index, const String &p_bone_name);
@@ -314,6 +307,4 @@ public:
 	~SpringBoneSimulator3D();
 };
 
-VARIANT_ENUM_CAST(SpringBoneSimulator3D::BoneDirection);
 VARIANT_ENUM_CAST(SpringBoneSimulator3D::CenterFrom);
-VARIANT_ENUM_CAST(SpringBoneSimulator3D::RotationAxis);
