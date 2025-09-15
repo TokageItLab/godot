@@ -185,8 +185,7 @@ void AimModifier3D::_process_constraint_by_node(int p_index, Skeleton3D *p_skele
 	if (!nd) {
 		return;
 	}
-	Transform3D tr = p_skeleton->get_global_transform() * p_skeleton->get_bone_global_pose(p_apply_bone);
-	Vector3 reference_origin = nd->get_global_position() - tr.origin;
+	Vector3 reference_origin = nd->get_global_position() - p_skeleton->get_global_position();
 	_process_aim(p_index, p_skeleton, p_apply_bone, reference_origin, p_amount);
 }
 
