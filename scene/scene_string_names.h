@@ -92,6 +92,7 @@ public:
 
 	const StringName pose_updated = "pose_updated";
 	const StringName skeleton_updated = "skeleton_updated";
+	const StringName skeleton_rendered = "skeleton_rendered";
 	const StringName bone_enabled_changed = "bone_enabled_changed";
 	const StringName show_rest_only_changed = "show_rest_only_changed";
 

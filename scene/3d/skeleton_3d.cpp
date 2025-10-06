@@ -412,6 +412,8 @@ void Skeleton3D::_notification(int p_what) {
 				bone_global_pose_dirty = bone_global_pose_dirty_backup;
 			}
 
+			emit_signal(SceneStringName(skeleton_rendered));
+
 			updating = false;
 			update_flags = UPDATE_FLAG_NONE;
 		} break;
@@ -1040,6 +1042,10 @@ Ref<SkinReference> Skeleton3D::register_skin(const Ref<Skin> &p_skin) {
 	return skin_ref;
 }
 
+HashSet<SkinReference *> Skeleton3D::get_skin_bindings() {
+	return skin_bindings;
+}
+
 void Skeleton3D::force_update_deferred() {
 	_make_dirty();
 }
@@ -1299,6 +1305,7 @@ void Skeleton3D::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("rest_updated"));
 	ADD_SIGNAL(MethodInfo("pose_updated"));
 	ADD_SIGNAL(MethodInfo("skeleton_updated"));
+	ADD_SIGNAL(MethodInfo("skeleton_rendered"));
 	ADD_SIGNAL(MethodInfo("bone_enabled_changed", PropertyInfo(Variant::INT, "bone_idx")));
 	ADD_SIGNAL(MethodInfo("bone_list_changed"));
 	ADD_SIGNAL(MethodInfo("show_rest_only_changed"));
