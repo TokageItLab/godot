@@ -127,6 +127,7 @@ void BoneExpander3D::set_bone(int p_index, int p_bone) {
 			settings[p_index].bone_name = sk->get_bone_name(settings[p_index].bone);
 		}
 	}
+	bone_changed = true;
 }
 
 int BoneExpander3D::get_bone(int p_index) const {
@@ -160,17 +161,46 @@ void BoneExpander3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "setting_size", PROPERTY_HINT_RANGE, "0,1000,1", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_ARRAY, "Settings,settings/"), "set_setting_size", "get_setting_size");
 }
 
+void BoneExpander3D::_force_render_skin(Skeleton3D *p_skeleton) {
+	p_skeleton->force_update_deferred();
+	p_skeleton->notification(Skeleton3D::NOTIFICATION_UPDATE_SKELETON);
+}
+
+void BoneExpander3D::_skeleton_changed(Skeleton3D *p_old, Skeleton3D *p_new) {
+	if (p_old) {
+		if (p_old->is_connected(SceneStringName(skeleton_updated), callable_mp(this, &BoneExpander3D::_apply_skin))) {
+			p_old->disconnect(SceneStringName(skeleton_updated), callable_mp(this, &BoneExpander3D::_apply_skin));
+		}
+		if (p_old->is_connected(SceneStringName(skeleton_rendered), callable_mp(this, &BoneExpander3D::_restore_skin))) {
+			p_old->disconnect(SceneStringName(skeleton_rendered), callable_mp(this, &BoneExpander3D::_restore_skin));
+		}
+		// Hack:
+		// Re-rendering is not called randomly, maybe depend on the processing order with RenderingServer?
+		// So call it twice for the proof.
+		_force_render_skin(p_old);
+		callable_mp(this, &BoneExpander3D::_force_render_skin).call_deferred(p_old);
+	}
+	if (p_new) {
+		if (!p_new->is_connected(SceneStringName(skeleton_updated), callable_mp(this, &BoneExpander3D::_apply_skin))) {
+			p_new->connect(SceneStringName(skeleton_updated), callable_mp(this, &BoneExpander3D::_apply_skin));
+		}
+		if (!p_new->is_connected(SceneStringName(skeleton_rendered), callable_mp(this, &BoneExpander3D::_restore_skin))) {
+			p_new->connect(SceneStringName(skeleton_rendered), callable_mp(this, &BoneExpander3D::_restore_skin));
+		}
+	}
+}
+
 void BoneExpander3D::_set_active(bool p_active) {
 	if (!p_active) {
-		_restore_skin();
+		Skeleton3D *skeleton = get_skeleton();
+		if (!skeleton) {
+			return;
+		}
+		_force_render_skin(skeleton);
 	}
 }
 
 void BoneExpander3D::_process_modification(double p_delta) {
-	if (!is_inside_tree()) {
-		return;
-	}
-
 	Skeleton3D *skeleton = get_skeleton();
 	if (!skeleton) {
 		return;
@@ -182,6 +212,7 @@ void BoneExpander3D::_process_modification(double p_delta) {
 		skin_info.insert(skin->get_instance_id(), info);
 	}
 
+	bool processed = false;
 	for (const BoneExpander3DSetting &setting : settings) {
 		int bone = setting.bone;
 		if (bone < 0) {
@@ -212,10 +243,14 @@ void BoneExpander3D::_process_modification(double p_delta) {
 				}
 			}
 		}
+
+		processed = true;
 	}
 
-	skeleton->connect(SceneStringName(skeleton_updated), callable_mp(this, &BoneExpander3D::_apply_skin), CONNECT_ONE_SHOT);
-	skeleton->connect(SceneStringName(skeleton_rendered), callable_mp(this, &BoneExpander3D::_restore_skin), CONNECT_ONE_SHOT);
+	if (processed || bone_changed) {
+		skeleton->force_update_deferred();
+		bone_changed = false;
+	}
 }
 
 void BoneExpander3D::_apply_skin() {

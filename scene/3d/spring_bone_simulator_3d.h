@@ -64,8 +64,8 @@ public:
 	struct SpringBone3DVerletInfo {
 		Vector3 prev_tail;
 		Vector3 current_tail;
-		Vector3 forward_vector;
 		Quaternion current_rot;
+		Vector3 forward_vector;
 		float length = 0.0;
 	};
 
@@ -156,6 +156,7 @@ public:
 protected:
 	LocalVector<SpringBone3DSetting *> settings;
 	Vector3 external_force;
+	bool mutable_bone_axes = false;
 
 	bool _get(const StringName &p_path, Variant &r_ret) const;
 	bool _set(const StringName &p_path, const Variant &p_value);
@@ -179,6 +180,8 @@ protected:
 
 	void _update_joint_array(int p_index);
 	void _update_joints();
+
+	void _update_bone_axes(Skeleton3D *p_skeleton);
 
 	virtual void add_child_notify(Node *p_child) override;
 	virtual void move_child_notify(Node *p_child) override;
@@ -304,10 +307,14 @@ public:
 	void set_external_force(const Vector3 &p_force);
 	Vector3 get_external_force() const;
 
+	void set_mutable_bone_axes(bool p_enabled);
+	bool are_bone_axes_mutable() const;
+
 	// To process manually.
 	void reset();
 
 #ifdef TOOLS_ENABLED
+	Vector3 get_bone_vector(int p_index, int p_joint) const;
 	virtual bool is_processed_on_saving() const override { return true; }
 #endif
 

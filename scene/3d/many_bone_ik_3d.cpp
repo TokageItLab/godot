@@ -102,6 +102,10 @@ void ManyBoneIK3D::_process_ik(Skeleton3D *p_skeleton, double p_delta) {
 	//
 }
 
+void ManyBoneIK3D::_update_bone_lengths() {
+	//
+}
+
 Quaternion ManyBoneIK3D::get_local_pose_rotation(Skeleton3D *p_skeleton, int p_bone, const Quaternion &p_global_pose_rotation) {
 	int parent = p_skeleton->get_bone_parent(p_bone);
 	if (parent < 0) {

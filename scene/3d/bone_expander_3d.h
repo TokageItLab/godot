@@ -38,6 +38,8 @@ class BoneExpander3D : public SkeletonModifier3D {
 
 	const Vector3 DEFAULT_SCALE = Vector3(1, 1, 1);
 
+	bool bone_changed = false;
+
 public:
 	struct BoneExpander3DSetting {
 		String bone_name;
@@ -54,12 +56,15 @@ protected:
 	void _get_property_list(List<PropertyInfo> *p_list) const;
 
 	static void _bind_methods();
-
+	
+	virtual void _skeleton_changed(Skeleton3D *p_old, Skeleton3D *p_new) override;
 	virtual void _set_active(bool p_active) override;
 
 	virtual void _process_modification(double p_delta) override;
 	void _apply_skin();
 	void _restore_skin();
+
+	void _force_render_skin(Skeleton3D *p_skeleton);
 
 public:
 	int get_setting_size();

@@ -82,6 +82,8 @@ protected:
 	virtual void _process_modification(double p_delta) override;
 	virtual void _process_ik(Skeleton3D *p_skeleton, double p_delta);
 
+	virtual void _update_bone_lengths();
+
 	template <typename T>
 	void _set_setting_count(int p_count) {
 		ERR_FAIL_COND(p_count < 0);
