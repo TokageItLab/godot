@@ -238,5 +238,9 @@ public:
 	void set_joint_count(int p_index, int p_count);
 	int get_joint_count(int p_index) const;
 
+#ifdef TOOLS_ENABLED
+	virtual Vector3 get_bone_vector(int p_index, int p_joint) const;
+#endif // TOOLS_ENABLED
+
 	~ChainIK3D();
 };

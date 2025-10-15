@@ -258,7 +258,7 @@ void ChainIK3D::set_extend_end_bone(int p_index, bool p_enabled) {
 	}
 	notify_property_list_changed();
 #ifdef TOOLS_ENABLED
-	update_gizmos();
+	_make_gizmo_dirty();
 #endif // TOOLS_ENABLED
 }
 
@@ -270,13 +270,16 @@ bool ChainIK3D::is_end_bone_extended(int p_index) const {
 void ChainIK3D::set_end_bone_direction(int p_index, BoneDirection p_bone_direction) {
 	ERR_FAIL_INDEX(p_index, (int)settings.size());
 	chain_settings[p_index]->end_bone_direction = p_bone_direction;
-	_make_simulation_dirty(p_index);
 	Skeleton3D *sk = get_skeleton();
 	if (sk && !chain_settings[p_index]->joints.is_empty()) {
 		_validate_axis(sk, p_index, chain_settings[p_index]->joints.size() - 1);
 	}
+	if (mutable_bone_axes) {
+		return; // Chain dir will be recaluclated in _update_bone_axis().
+	}
+	_make_simulation_dirty(p_index);
 #ifdef TOOLS_ENABLED
-	update_gizmos();
+	_make_gizmo_dirty();
 #endif // TOOLS_ENABLED
 }
 
@@ -287,10 +290,15 @@ SkeletonModifier3D::BoneDirection ChainIK3D::get_end_bone_direction(int p_index)
 
 void ChainIK3D::set_end_bone_length(int p_index, float p_length) {
 	ERR_FAIL_INDEX(p_index, (int)settings.size());
+	float old = chain_settings[p_index]->end_bone_length;
 	chain_settings[p_index]->end_bone_length = p_length;
 	_make_simulation_dirty(p_index);
+	if (mutable_bone_axes && Math::is_zero_approx(old) == Math::is_zero_approx(p_length)) {
+		return; // If chain size is not changed, length will be recaluclated in _update_bone_axis().
+	}
+	_make_simulation_dirty(p_index);
 #ifdef TOOLS_ENABLED
-	update_gizmos();
+	_make_gizmo_dirty();
 #endif // TOOLS_ENABLED
 }
 
@@ -471,13 +479,19 @@ void ChainIK3D::_update_joints(int p_index) {
 	}
 
 #ifdef TOOLS_ENABLED
-	update_gizmos();
+	_make_gizmo_dirty();
 #endif // TOOLS_ENABLED
 }
 
 void ChainIK3D::_process_ik(Skeleton3D *p_skeleton, double p_delta) {
 	//
 }
+
+#ifdef TOOLS_ENABLED
+Vector3 ChainIK3D::get_bone_vector(int p_index, int p_joint) const {
+	return Vector3();
+}
+#endif // TOOLS_ENABLED
 
 ChainIK3D::~ChainIK3D() {
 	clear_settings();
