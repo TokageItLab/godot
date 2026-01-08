@@ -684,6 +684,8 @@ public:
 		TRANSFORM_MODE_LOCAL = 2,
 	};
 
+	real_t gizmo_view_rotation_scale = 1.0;
+
 private:
 	EditorSelection *editor_selection = nullptr;
 
