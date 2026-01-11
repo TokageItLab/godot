@@ -138,6 +138,7 @@ class Path3DEditorPlugin : public EditorPlugin {
 	};
 
 	Path3D *path = nullptr;
+	int selected_point = -1;
 
 	void _update_theme();
 	void _update_toolbar();
@@ -166,6 +167,9 @@ protected:
 
 public:
 	Path3D *get_edited_path() { return path; }
+
+	void set_selected_point(const EditorNode3DGizmo *p_gizmo, int p_index);
+	int get_selected_point() const;
 
 	inline static Path3DEditorPlugin *singleton = nullptr;
 	virtual EditorPlugin::AfterGUIInput forward_3d_gui_input(Camera3D *p_camera, const Ref<InputEvent> &p_event) override;
