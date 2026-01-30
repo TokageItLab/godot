@@ -518,8 +518,22 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 		return;
 	}
 
+	// Extract rotations which are wanted to keep in relative mode.
+	double src_twist = 0.0;
+	double src_secondary_rot = 0.0;
+	if (relative) {
+		// Extract twist.
+		Quaternion ref_rot = skeleton->get_bone_rest(bone).basis.get_rotation_quaternion().inverse() * skeleton->get_bone_pose_rotation(bone);
+		ref_rot.normalize();
+		src_twist = get_roll_angle(ref_rot, get_vector_from_bone_axis(forward_axis));
+		// Extract secondaly rot.
+		if (!use_secondary_rotation) {
+			src_secondary_rot = get_roll_angle(ref_rot, get_vector_from_axis(secondary_rotation_axis));
+		}
+	}
+
 	// Calculate bone rest space in the world.
-	Transform3D bone_rest = relative ? skeleton->get_bone_pose(bone) : skeleton->get_bone_rest(bone);
+	Transform3D bone_rest = skeleton->get_bone_rest(bone);
 	Transform3D bone_rest_space;
 	int parent_bone = skeleton->get_bone_parent(bone);
 	if (parent_bone < 0) {
@@ -602,9 +616,17 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 			destination = from_q.slerp(destination, Tween::run_equation(transition_type, ease_type, 1 - remaining, 0.0, 1.0, 1.0));
 		}
 	}
+	prev_q = destination;
+
+	// Restore extracted rotation before look at.
+	if (relative) {
+		if (!use_secondary_rotation) {
+			destination = destination * Quaternion(get_vector_from_axis(secondary_rotation_axis), src_secondary_rot);
+		}
+		destination = destination * Quaternion(get_vector_from_bone_axis(forward_axis), src_twist);
+	}
 
 	skeleton->set_bone_pose_rotation(bone, destination);
-	prev_q = destination;
 }
 
 bool LookAtModifier3D::is_intersecting_axis(const Vector3 &p_prev, const Vector3 &p_current, Vector3::Axis p_flipping_axis, Vector3::Axis p_check_axis, bool p_check_plane) const {
