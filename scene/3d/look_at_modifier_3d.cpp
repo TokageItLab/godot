@@ -533,8 +533,9 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 
 	// Calculate forward_vector and destination.
 	is_within_limitations = true;
-	Vector3 prev_forward_vector = forward_vector;
+	Basis current_rest_basis = bone_rest_space.orthonormalized().basis;
 	Quaternion destination;
+	Vector3 target_world;
 	Node3D *target = Object::cast_to<Node3D>(get_node_or_null(target_node));
 	if (!target) {
 		destination = skeleton->get_bone_pose_rotation(bone);
@@ -552,7 +553,8 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 		} else {
 			origin_tr = bone_rest_space;
 		}
-		forward_vector = bone_rest_space.orthonormalized().basis.xform_inv(target->get_global_transform_interpolated().origin - origin_tr.translated_local(origin_offset).origin);
+		target_world = target->get_global_transform_interpolated().origin - origin_tr.translated_local(origin_offset).origin;
+		forward_vector = current_rest_basis.xform_inv(target_world);
 		forward_vector_nrm = forward_vector.normalized();
 		if (forward_vector_nrm.abs().is_equal_approx(get_vector_from_axis(primary_rotation_axis))) {
 			destination = skeleton->get_bone_pose_rotation(bone);
@@ -566,26 +568,30 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 	bool is_not_max_influence = influence < 1.0;
 	bool is_flippable = use_angle_limitation || is_not_max_influence;
 	Vector3::Axis current_forward_axis = get_axis_from_bone_axis(forward_axis);
-	if (is_intersecting_axis(prev_forward_vector, forward_vector, current_forward_axis, secondary_rotation_axis) ||
-			is_intersecting_axis(prev_forward_vector, forward_vector, primary_rotation_axis, primary_rotation_axis, true) ||
-			is_intersecting_axis(prev_forward_vector, forward_vector, secondary_rotation_axis, current_forward_axis) ||
-			(prev_forward_vector != Vector3(0, 0, 0) && forward_vector == Vector3(0, 0, 0)) ||
-			(prev_forward_vector == Vector3(0, 0, 0) && forward_vector != Vector3(0, 0, 0))) {
+	Vector3 current_local_forward = bone_rest.basis.xform_inv(forward_vector_nrm);
+	Vector3 prev_local_forward = prev_forward_world.is_zero_approx()
+			? Vector3()
+			: bone_rest.basis.xform_inv(current_rest_basis.xform_inv(prev_forward_world.normalized()));
+	if (is_intersecting_axis(prev_local_forward, current_local_forward, current_forward_axis, secondary_rotation_axis) ||
+			is_intersecting_axis(prev_local_forward, current_local_forward, primary_rotation_axis, primary_rotation_axis, true) ||
+			is_intersecting_axis(prev_local_forward, current_local_forward, secondary_rotation_axis, current_forward_axis) ||
+			(prev_local_forward != Vector3(0, 0, 0) && current_local_forward == Vector3(0, 0, 0)) ||
+			(prev_local_forward == Vector3(0, 0, 0) && current_local_forward != Vector3(0, 0, 0))) {
 		init_transition();
-	} else if (is_flippable && std::signbit(prev_forward_vector[secondary_rotation_axis]) != std::signbit(forward_vector[secondary_rotation_axis])) {
+	} else if (is_flippable && std::signbit(prev_local_forward[secondary_rotation_axis]) != std::signbit(current_local_forward[secondary_rotation_axis])) {
 		// Flipping by angle_limitation can be detected by sign of secondary rotation axes during forward_vector is rotated more than 90 degree from forward_axis (means dot production is negative).
-		Vector3 prev_forward_vector_nrm = forward_vector.normalized();
-		Vector3 rest_forward_vector = get_vector_from_bone_axis(forward_axis);
+		Vector3 prev_forward_vector_nrm = prev_local_forward.normalized();
+		Vector3 rest_forward_vector = get_vector_from_bone_axis(forward_axis).normalized();
 		if (symmetry_limitation) {
 			if ((is_not_max_influence || !Math::is_equal_approx(primary_limit_angle, (float)Math::TAU)) &&
 					prev_forward_vector_nrm.dot(rest_forward_vector) < 0 &&
-					forward_vector_nrm.dot(rest_forward_vector) < 0) {
+					current_local_forward.normalized().dot(rest_forward_vector) < 0) {
 				init_transition();
 			}
 		} else {
 			if ((is_not_max_influence || !Math::is_equal_approx(primary_positive_limit_angle + primary_negative_limit_angle, (float)Math::TAU)) &&
 					prev_forward_vector_nrm.dot(rest_forward_vector) < 0 &&
-					forward_vector_nrm.dot(rest_forward_vector) < 0) {
+					current_local_forward.normalized().dot(rest_forward_vector) < 0) {
 				init_transition();
 			}
 		}
@@ -603,6 +609,8 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 			destination = from_q.slerp(destination, Tween::run_equation(transition_type, ease_type, 1 - remaining, 0.0, 1.0, 1.0));
 		}
 	}
+
+	prev_forward_world = target ? target_world : Vector3();
 
 	skeleton->set_bone_pose_rotation(bone, destination);
 	prev_q = destination;

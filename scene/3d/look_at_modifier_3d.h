@@ -49,6 +49,7 @@ private:
 
 	Vector3 forward_vector;
 	Vector3 forward_vector_nrm;
+	Vector3 prev_forward_world;
 	BoneAxis forward_axis = BONE_AXIS_PLUS_Z;
 	Vector3::Axis primary_rotation_axis = Vector3::AXIS_Y;
 	Vector3::Axis secondary_rotation_axis = Vector3::AXIS_X;
