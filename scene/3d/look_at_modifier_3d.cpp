@@ -596,7 +596,7 @@ void LookAtModifier3D::_process_modification(double p_delta) {
 		remaining = MAX(0, remaining - time_step * p_delta);
 		if (is_flippable) {
 			// Interpolate through the rest same as AnimationTree blending for preventing to penetrate the bone into the body.
-			Quaternion rest = skeleton->get_bone_rest(bone).basis.get_rotation_quaternion();
+			Quaternion rest = bone_rest.basis.get_rotation_quaternion();
 			float weight = Tween::run_equation(transition_type, ease_type, 1 - remaining, 0.0, 1.0, 1.0);
 			destination = Animation::interpolate_via_rest(Animation::interpolate_via_rest(rest, from_q, 1 - weight, rest), destination, weight, rest);
 		} else {
