@@ -42,6 +42,13 @@ public:
 		BLEND_MODE_DISCRETE_CARRY,
 	};
 
+	enum SyncMode {
+		SYNC_MODE_NONE, // Inactive animations are frozen (not advanced).
+		SYNC_MODE_INDEPENDENT, // Inactive animations advance with weight=0 (previous "sync" behavior).
+		SYNC_MODE_CYCLIC_MUTABLE, // Time-scaled with blend-weight-dependent cycle length (self-normalizing).
+		SYNC_MODE_CYCLIC_CONSTANT, // Time-scaled to complete one cycle in cyclic_length seconds.
+	};
+
 protected:
 	enum {
 		MAX_BLEND_POINTS = 64
@@ -86,7 +93,11 @@ protected:
 	void _update_triangles();
 	void _queue_auto_triangles();
 
-	bool sync = false;
+	SyncMode sync_mode = SYNC_MODE_NONE;
+	double cyclic_length = 0.0;
+	double inverted_cycle_length = 0.0; // Cached 1/cyclic_length.
+	LocalVector<double> cached_lengths;
+	bool lengths_dirty = true;
 
 	void _validate_property(PropertyInfo &p_property) const;
 	static void _bind_methods();
@@ -151,8 +162,16 @@ public:
 	void set_blend_mode(BlendMode p_blend_mode);
 	BlendMode get_blend_mode() const;
 
-	void set_use_sync(bool p_sync);
-	bool is_using_sync() const;
+	void set_cyclic_length(double p_length);
+	double get_cyclic_length() const;
+
+#ifndef DISABLE_DEPRECATED
+	void set_use_sync(bool p_sync); // Compat: maps to SYNC_MODE_INDEPENDENT or SYNC_MODE_NONE.
+	bool is_using_sync() const; // Compat: returns sync_mode != SYNC_MODE_NONE.
+#endif // DISABLE_DEPRECATED
+
+	void set_sync_mode(SyncMode p_sync_mode);
+	SyncMode get_sync_mode() const;
 
 	virtual Ref<AnimationNode> get_child_by_name(const StringName &p_name) const override;
 
@@ -161,3 +180,4 @@ public:
 };
 
 VARIANT_ENUM_CAST(AnimationNodeBlendSpace2D::BlendMode)
+VARIANT_ENUM_CAST(AnimationNodeBlendSpace2D::SyncMode)

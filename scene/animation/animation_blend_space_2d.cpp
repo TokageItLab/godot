@@ -102,6 +102,7 @@ void AnimationNodeBlendSpace2D::add_blend_point(const Ref<AnimationRootNode> &p_
 	blend_points[p_at_index].node->connect("animation_node_removed", callable_mp(this, &AnimationNodeBlendSpace2D::_animation_node_removed), CONNECT_REFERENCE_COUNTED);
 	blend_points_used++;
 
+	lengths_dirty = true;
 	_queue_auto_triangles();
 
 	emit_signal(SNAME("tree_changed"));
@@ -127,6 +128,7 @@ void AnimationNodeBlendSpace2D::set_blend_point_node(int p_point, const Ref<Anim
 	blend_points[p_point].node->connect("animation_node_renamed", callable_mp(this, &AnimationNodeBlendSpace2D::_animation_node_renamed), CONNECT_REFERENCE_COUNTED);
 	blend_points[p_point].node->connect("animation_node_removed", callable_mp(this, &AnimationNodeBlendSpace2D::_animation_node_removed), CONNECT_REFERENCE_COUNTED);
 
+	lengths_dirty = true;
 	emit_signal(SNAME("tree_changed"));
 }
 
@@ -197,6 +199,7 @@ void AnimationNodeBlendSpace2D::remove_blend_point(int p_point) {
 	blend_points_used--;
 
 	blend_points[blend_points_used].name = StringName();
+	lengths_dirty = true;
 
 	emit_signal(SNAME("animation_node_removed"), get_instance_id(), itos(p_point));
 	emit_signal(SNAME("tree_changed"));
@@ -634,29 +637,88 @@ AnimationNode::NodeTimeInfo AnimationNodeBlendSpace2D::_process(const AnimationM
 			triangle_points[j] = get_triangle_point(blend_triangle, j);
 		}
 
+		// Build weights array for all blend points.
+		float weights[MAX_BLEND_POINTS] = {};
+		for (int j = 0; j < 3; j++) {
+			weights[triangle_points[j]] = blend_weights[j];
+		}
+
 		first = true;
 
+		// Compute time-scaling factor for cyclic modes.
+		double inv_target_length = 0.0;
+		if (sync_mode == SYNC_MODE_CYCLIC_MUTABLE || (sync_mode == SYNC_MODE_CYCLIC_CONSTANT && inverted_cycle_length > CMP_EPSILON)) {
+			// Refresh cached lengths when blend points have changed.
+			if (lengths_dirty) {
+				cached_lengths.resize(blend_points_used);
+				for (int i = 0; i < blend_points_used; i++) {
+					AnimationMixer::PlaybackInfo test_pi = p_playback_info;
+					test_pi.weight = 0;
+					NodeTimeInfo info = blend_node(blend_points[i].node, blend_points[i].name, test_pi, FILTER_IGNORE, true, true);
+					cached_lengths[i] = (info.length > CMP_EPSILON) ? info.length : 0.0;
+				}
+				lengths_dirty = false;
+			}
+
+			if (sync_mode == SYNC_MODE_CYCLIC_MUTABLE) {
+				// Compute blended_len from active triangle weights.
+				double target_length = 0.0;
+				double total_weight = 0.0;
+				for (int j = 0; j < 3; j++) {
+					int idx = triangle_points[j];
+					if (blend_weights[j] > 0.0f && cached_lengths[idx] > CMP_EPSILON) {
+						target_length += blend_weights[j] * cached_lengths[idx];
+						total_weight += blend_weights[j];
+					}
+				}
+				if (total_weight > CMP_EPSILON) {
+					target_length /= total_weight;
+				}
+				inv_target_length = (target_length > CMP_EPSILON) ? (1.0 / target_length) : 0.0;
+			} else {
+				// Use cached inverse of user-specified cyclic_length.
+				inv_target_length = inverted_cycle_length;
+			}
+		}
+
+		// Blend all points.
 		double max_weight = 0.0;
 		for (int i = 0; i < blend_points_used; i++) {
-			bool found = false;
-			for (int j = 0; j < 3; j++) {
-				if (i == triangle_points[j]) {
-					//blend with the given weight
-					pi.weight = blend_weights[j];
-					NodeTimeInfo t = blend_node(blend_points[i].node, get_blend_point_name(i), pi, FILTER_IGNORE, true, p_test_only);
-					if (first || pi.weight > max_weight) {
-						mind = t;
-						max_weight = pi.weight;
-						first = false;
-					}
-					found = true;
-					break;
+			float w = weights[i];
+
+			// In SYNC_MODE_NONE, skip points not in the active triangle.
+			if (sync_mode == SYNC_MODE_NONE && w == 0.0f) {
+				continue;
+			}
+
+			pi = p_playback_info;
+			pi.weight = w;
+
+			// Apply time scaling for cyclic modes.
+			if (inv_target_length > CMP_EPSILON && cached_lengths[i] > CMP_EPSILON) {
+				double factor = cached_lengths[i] * inv_target_length;
+				if (p_playback_info.seeked) {
+					pi.time *= factor;
+				} else {
+					pi.delta *= factor;
 				}
 			}
 
-			if (sync && !found) {
-				pi.weight = 0;
-				blend_node(blend_points[i].node, get_blend_point_name(i), pi, FILTER_IGNORE, true, p_test_only);
+			NodeTimeInfo t = blend_node(blend_points[i].node, get_blend_point_name(i), pi, FILTER_IGNORE, true, p_test_only);
+
+			// For cyclic modes, duration is deterministic - just capture first active.
+			// For non-cyclic modes, use max weight.
+			if (inv_target_length > CMP_EPSILON) {
+				if (first && w > 0.0f) {
+					mind = t;
+					first = false;
+				}
+			} else {
+				if (first || w > max_weight) {
+					mind = t;
+					max_weight = w;
+					first = false;
+				}
 			}
 		}
 	} else {
@@ -701,7 +763,7 @@ AnimationNode::NodeTimeInfo AnimationNodeBlendSpace2D::_process(const AnimationM
 			mind = blend_node(blend_points[cur_closest].node, get_blend_point_name(cur_closest), pi, FILTER_IGNORE, true, p_test_only);
 		}
 
-		if (sync) {
+		if (sync_mode != SYNC_MODE_NONE) {
 			pi = p_playback_info;
 			pi.weight = 0;
 			for (int i = 0; i < blend_points_used; i++) {
@@ -755,12 +817,31 @@ AnimationNodeBlendSpace2D::BlendMode AnimationNodeBlendSpace2D::get_blend_mode()
 	return blend_mode;
 }
 
+#ifndef DISABLE_DEPRECATED
 void AnimationNodeBlendSpace2D::set_use_sync(bool p_sync) {
-	sync = p_sync;
+	sync_mode = p_sync ? SYNC_MODE_INDEPENDENT : SYNC_MODE_NONE;
 }
 
 bool AnimationNodeBlendSpace2D::is_using_sync() const {
-	return sync;
+	return sync_mode != SYNC_MODE_NONE;
+}
+#endif // DISABLE_DEPRECATED
+
+void AnimationNodeBlendSpace2D::set_sync_mode(SyncMode p_sync_mode) {
+	sync_mode = p_sync_mode;
+}
+
+AnimationNodeBlendSpace2D::SyncMode AnimationNodeBlendSpace2D::get_sync_mode() const {
+	return sync_mode;
+}
+
+void AnimationNodeBlendSpace2D::set_cyclic_length(double p_length) {
+	cyclic_length = p_length;
+	inverted_cycle_length = (p_length > CMP_EPSILON) ? (1.0 / p_length) : 0.0;
+}
+
+double AnimationNodeBlendSpace2D::get_cyclic_length() const {
+	return cyclic_length;
 }
 
 void AnimationNodeBlendSpace2D::_tree_changed() {
@@ -817,8 +898,16 @@ void AnimationNodeBlendSpace2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_blend_mode", "mode"), &AnimationNodeBlendSpace2D::set_blend_mode);
 	ClassDB::bind_method(D_METHOD("get_blend_mode"), &AnimationNodeBlendSpace2D::get_blend_mode);
 
+#ifndef DISABLE_DEPRECATED
 	ClassDB::bind_method(D_METHOD("set_use_sync", "enable"), &AnimationNodeBlendSpace2D::set_use_sync);
 	ClassDB::bind_method(D_METHOD("is_using_sync"), &AnimationNodeBlendSpace2D::is_using_sync);
+#endif // DISABLE_DEPRECATED
+
+	ClassDB::bind_method(D_METHOD("set_sync_mode", "sync_mode"), &AnimationNodeBlendSpace2D::set_sync_mode);
+	ClassDB::bind_method(D_METHOD("get_sync_mode"), &AnimationNodeBlendSpace2D::get_sync_mode);
+
+	ClassDB::bind_method(D_METHOD("set_cyclic_length", "length"), &AnimationNodeBlendSpace2D::set_cyclic_length);
+	ClassDB::bind_method(D_METHOD("get_cyclic_length"), &AnimationNodeBlendSpace2D::get_cyclic_length);
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_triangles", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR), "set_auto_triangles", "get_auto_triangles");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT32_ARRAY, "triangles", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL), "_set_triangles", "_get_triangles");
@@ -829,12 +918,23 @@ void AnimationNodeBlendSpace2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "x_label", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR), "set_x_label", "get_x_label");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "y_label", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR), "set_y_label", "get_y_label");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "blend_mode", PROPERTY_HINT_ENUM, "Interpolated,Discrete,Carry", PROPERTY_USAGE_NO_EDITOR), "set_blend_mode", "get_blend_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "sync", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR), "set_use_sync", "is_using_sync");
+#ifndef DISABLE_DEPRECATED
+	// Keep "sync" as bool with old getter/setter for GDExtension API backward compatibility (4.0-4.6).
+	// Old scenes with "sync = true" still load via set_use_sync -> SYNC_MODE_INDEPENDENT.
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "sync", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE), "set_use_sync", "is_using_sync");
+#endif // DISABLE_DEPRECATED
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "sync_mode", PROPERTY_HINT_ENUM, "None,Independent,Cyclic Mutable,Cyclic Constant", PROPERTY_USAGE_NO_EDITOR), "set_sync_mode", "get_sync_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "cyclic_length", PROPERTY_HINT_RANGE, "0.0,99.0,0.001,or_greater", PROPERTY_USAGE_NO_EDITOR), "set_cyclic_length", "get_cyclic_length");
 
 	ADD_SIGNAL(MethodInfo("triangles_updated"));
 	BIND_ENUM_CONSTANT(BLEND_MODE_INTERPOLATED);
 	BIND_ENUM_CONSTANT(BLEND_MODE_DISCRETE);
 	BIND_ENUM_CONSTANT(BLEND_MODE_DISCRETE_CARRY);
+
+	BIND_ENUM_CONSTANT(SYNC_MODE_NONE);
+	BIND_ENUM_CONSTANT(SYNC_MODE_INDEPENDENT);
+	BIND_ENUM_CONSTANT(SYNC_MODE_CYCLIC_MUTABLE);
+	BIND_ENUM_CONSTANT(SYNC_MODE_CYCLIC_CONSTANT);
 }
 
 AnimationNodeBlendSpace2D::AnimationNodeBlendSpace2D() {

@@ -357,6 +357,23 @@ void AnimationNodeBlendSpace1DEditor::_blend_space_draw() {
 
 			text_rects.write[i] = Rect2(Vector2(text_pos.x, text_pos.y - font->get_ascent(font_size)), text_size);
 		}
+
+		// Draw × marker on non-AnimationNodeAnimation points when in cyclic mode.
+		AnimationNodeBlendSpace1D::SyncMode sync_mode = blend_space->get_sync_mode();
+		if (sync_mode == AnimationNodeBlendSpace1D::SYNC_MODE_CYCLIC_MUTABLE || sync_mode == AnimationNodeBlendSpace1D::SYNC_MODE_CYCLIC_CONSTANT) {
+			Ref<AnimationNode> node = blend_space->get_blend_point_node(i);
+			Ref<AnimationNodeAnimation> anim_node = node;
+			if (anim_node.is_null()) {
+				// Not an AnimationNodeAnimation - draw × warning marker and label.
+				Color error_color = get_theme_color(SNAME("error_color"), EditorStringName(Editor));
+				Vector2 center = gui_point + icon->get_size() / 2.0;
+				float half_size = 6 * EDSCALE;
+				blend_space_draw->draw_line(center - Vector2(half_size, half_size), center + Vector2(half_size, half_size), error_color, Math::round(2 * EDSCALE));
+				blend_space_draw->draw_line(center - Vector2(-half_size, half_size), center + Vector2(-half_size, half_size), error_color, Math::round(2 * EDSCALE));
+				// Draw warning text below the point.
+				blend_space_draw->draw_string(font, Vector2(gui_point.x, gui_point.y + icon->get_size().y + font->get_ascent(font_size)), TTR("No sync"), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, error_color);
+			}
+		}
 	}
 
 	// blend position
@@ -395,7 +412,10 @@ void AnimationNodeBlendSpace1DEditor::_update_space() {
 	max_value->set_value(blend_space->get_max_space());
 	min_value->set_value(blend_space->get_min_space());
 
-	sync->set_pressed(blend_space->is_using_sync());
+	sync->select(blend_space->get_sync_mode());
+	cyclic_length_value->set_value(blend_space->get_cyclic_length());
+	cyclic_length_value->set_visible(blend_space->get_sync_mode() == AnimationNodeBlendSpace1D::SYNC_MODE_CYCLIC_CONSTANT);
+
 	interpolation->select(blend_space->get_blend_mode());
 
 	label_value->set_text(blend_space->get_value_label());
@@ -421,14 +441,19 @@ void AnimationNodeBlendSpace1DEditor::_config_changed(double) {
 	undo_redo->add_undo_method(blend_space.ptr(), "set_min_space", blend_space->get_min_space());
 	undo_redo->add_do_method(blend_space.ptr(), "set_snap", snap_value->get_value());
 	undo_redo->add_undo_method(blend_space.ptr(), "set_snap", blend_space->get_snap());
-	undo_redo->add_do_method(blend_space.ptr(), "set_use_sync", sync->is_pressed());
-	undo_redo->add_undo_method(blend_space.ptr(), "set_use_sync", blend_space->is_using_sync());
+	undo_redo->add_do_method(blend_space.ptr(), "set_sync_mode", sync->get_selected());
+	undo_redo->add_undo_method(blend_space.ptr(), "set_sync_mode", blend_space->get_sync_mode());
+	undo_redo->add_do_method(blend_space.ptr(), "set_cyclic_length", cyclic_length_value->get_value());
+	undo_redo->add_undo_method(blend_space.ptr(), "set_cyclic_length", blend_space->get_cyclic_length());
 	undo_redo->add_do_method(blend_space.ptr(), "set_blend_mode", interpolation->get_selected());
 	undo_redo->add_undo_method(blend_space.ptr(), "set_blend_mode", blend_space->get_blend_mode());
 	undo_redo->add_do_method(this, "_update_space");
 	undo_redo->add_undo_method(this, "_update_space");
 	undo_redo->commit_action();
 	updating = false;
+
+	// Update cyclic_length visibility immediately (undo/redo calls _update_space while updating=true).
+	cyclic_length_value->set_visible(sync->get_selected() == AnimationNodeBlendSpace1D::SYNC_MODE_CYCLIC_CONSTANT);
 
 	blend_space_draw->queue_redraw();
 }
@@ -802,6 +827,7 @@ void AnimationNodeBlendSpace1DEditor::edit(const Ref<AnimationNode> &p_node) {
 	min_value->set_editable(!read_only);
 	max_value->set_editable(!read_only);
 	sync->set_disabled(read_only);
+	cyclic_length_value->set_editable(!read_only);
 	interpolation->set_disabled(read_only);
 }
 
@@ -995,9 +1021,24 @@ AnimationNodeBlendSpace1DEditor::AnimationNodeBlendSpace1DEditor() {
 
 	top_hb->add_child(memnew(VSeparator));
 	top_hb->add_child(memnew(Label(TTR("Sync"))));
-	sync = memnew(CheckBox);
+	sync = memnew(OptionButton);
+	sync->add_item(TTR("None"));
+	sync->add_item(TTR("Independent"));
+	sync->add_item(TTR("Cyclic Mutable"));
+	sync->add_item(TTR("Cyclic Constant"));
 	top_hb->add_child(sync);
-	sync->connect(SceneStringName(toggled), callable_mp(this, &AnimationNodeBlendSpace1DEditor::_config_changed));
+	sync->connect(SceneStringName(item_selected), callable_mp(this, &AnimationNodeBlendSpace1DEditor::_config_changed));
+
+	cyclic_length_value = memnew(SpinBox);
+	cyclic_length_value->set_min(0.0);
+	cyclic_length_value->set_max(99.0);
+	cyclic_length_value->set_step(0.001);
+	cyclic_length_value->set_allow_greater(true);
+	cyclic_length_value->set_suffix("s");
+	cyclic_length_value->set_accessibility_name(TTRC("Cyclic Length"));
+	cyclic_length_value->set_tooltip_text(TTR("Cycle length in seconds for cyclic sync. All animations are time-scaled to complete one cycle in this duration."));
+	top_hb->add_child(cyclic_length_value);
+	cyclic_length_value->connect(SceneStringName(value_changed), callable_mp(this, &AnimationNodeBlendSpace1DEditor::_config_changed));
 
 	top_hb->add_child(memnew(VSeparator));
 
