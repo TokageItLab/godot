@@ -85,7 +85,7 @@ protected:
 	void _set_triangles(const Vector<int> &p_triangles);
 	Vector<int> _get_triangles() const;
 
-	void _blend_triangle(const Vector2 &p_pos, const Vector2 *p_points, float *r_weights);
+	void _blend_triangle(const Vector2 &p_pos, const LocalVector<Vector2> &p_points, LocalVector<float> &r_weights);
 
 	bool auto_triangles = true;
 	bool triangles_dirty = false;
@@ -105,6 +105,9 @@ protected:
 	virtual void _tree_changed() override;
 	virtual void _animation_node_renamed(const ObjectID &p_oid, const String &p_old_name, const String &p_new_name) override;
 	virtual void _animation_node_removed(const ObjectID &p_oid, const StringName &p_node) override;
+
+	bool is_contain_invalid_point = false;
+	void _check_can_sync();
 
 #ifndef DISABLE_DEPRECATED
 	void _add_blend_point_bind_compat_110369(const Ref<AnimationRootNode> &p_node, const Vector2 &p_position, int p_at_index = -1);

@@ -529,6 +529,7 @@ void AnimationNodeBlendSpace2DEditor::_blend_space_draw() {
 	int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
 	Ref<Texture2D> icon = get_editor_theme_icon(SNAME("KeyValue"));
 	Ref<Texture2D> icon_selected = get_editor_theme_icon(SNAME("KeySelected"));
+	Ref<Texture2D> icon_invalid = get_editor_theme_icon(SNAME("KeyInvalid"));
 
 	Size2 s = blend_space_draw->get_size();
 
@@ -627,6 +628,7 @@ void AnimationNodeBlendSpace2DEditor::_blend_space_draw() {
 		blend_space_draw->draw_primitive(bl_points, colors, Vector<Vector2>());
 	}
 
+	bool does_include_invalid_key = false;
 	points.clear();
 	for (int i = 0; i < blend_space->get_blend_point_count(); i++) {
 		Vector2 point = blend_space->get_blend_point_position(i);
@@ -642,8 +644,19 @@ void AnimationNodeBlendSpace2DEditor::_blend_space_draw() {
 		point.y = s.height - point.y;
 		points.push_back(point);
 
+		// Draw × marker on non-AnimationNodeAnimation points when in cyclic mode.
+		bool is_key_valid = true;
+		AnimationNodeBlendSpace2D::SyncMode sync_mode = blend_space->get_sync_mode();
+		if (sync_mode == AnimationNodeBlendSpace2D::SYNC_MODE_CYCLIC_MUTABLE || sync_mode == AnimationNodeBlendSpace2D::SYNC_MODE_CYCLIC_CONSTANT) {
+			Ref<AnimationNode> node = blend_space->get_blend_point_node(i);
+			Ref<AnimationNodeAnimation> anim_node = node;
+			if (anim_node.is_null()) {
+				is_key_valid = false;
+				does_include_invalid_key = true;
+			}
+		}
 		Vector2 gui_point = (point - icon->get_size() / 2).floor();
-		blend_space_draw->draw_texture(i == selected_point ? icon_selected : icon, gui_point);
+		blend_space_draw->draw_texture(is_key_valid ? (i == selected_point ? icon_selected : icon) : icon_invalid, gui_point);
 
 		if (point.x >= 0.0 && point.x <= s.width && point.y >= 0.0 && point.y <= s.height && editing_point != i) {
 			String name_text = show_indices ? itos(i) : String(blend_space->get_blend_point_name(i));
@@ -664,23 +677,9 @@ void AnimationNodeBlendSpace2DEditor::_blend_space_draw() {
 
 			text_rects.write[i] = Rect2(Vector2(text_pos.x, text_pos.y - font->get_ascent(font_size)), text_size);
 		}
-
-		// Draw × marker on non-AnimationNodeAnimation points when in cyclic mode.
-		AnimationNodeBlendSpace2D::SyncMode sync_mode = blend_space->get_sync_mode();
-		if (sync_mode == AnimationNodeBlendSpace2D::SYNC_MODE_CYCLIC_MUTABLE || sync_mode == AnimationNodeBlendSpace2D::SYNC_MODE_CYCLIC_CONSTANT) {
-			Ref<AnimationNode> node = blend_space->get_blend_point_node(i);
-			Ref<AnimationNodeAnimation> anim_node = node;
-			if (anim_node.is_null()) {
-				// Not an AnimationNodeAnimation - draw × warning marker and label.
-				Color error_color = get_theme_color(SNAME("error_color"), EditorStringName(Editor));
-				Vector2 center = point + icon->get_size() / 2.0;
-				float half_size = 6 * EDSCALE;
-				blend_space_draw->draw_line(center - Vector2(half_size, half_size), center + Vector2(half_size, half_size), error_color, Math::round(2 * EDSCALE));
-				blend_space_draw->draw_line(center - Vector2(-half_size, half_size), center + Vector2(-half_size, half_size), error_color, Math::round(2 * EDSCALE));
-				// Draw warning text below the point.
-				blend_space_draw->draw_string(font, Vector2(point.x, point.y + icon->get_size().y + font->get_ascent(font_size)), TTR("No sync"), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, error_color);
-			}
-		}
+	}
+	if (does_include_invalid_key) {
+		// TODO: add popup warning button.
 	}
 
 	if (making_triangle.size()) {

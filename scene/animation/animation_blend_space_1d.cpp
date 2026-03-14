@@ -416,8 +416,22 @@ void AnimationNodeBlendSpace1D::_get_property_list(List<PropertyInfo> *p_list) c
 	}
 }
 
+void AnimationNodeBlendSpace1D::_check_can_sync() {
+	is_contain_invalid_point = false;
+	if (sync_mode != SYNC_MODE_CYCLIC_MUTABLE && sync_mode != SYNC_MODE_CYCLIC_CONSTANT) {
+		return;
+	}
+	for (int i = 0; i < blend_points_used; i++) {
+		Ref<AnimationNodeAnimation> na = static_cast<Ref<AnimationNodeAnimation>>(blend_points[i].node);
+		if (na.is_null()) {
+			is_contain_invalid_point = true;
+			break;
+		}
+	}
+}
+
 AnimationNode::NodeTimeInfo AnimationNodeBlendSpace1D::_process(const AnimationMixer::PlaybackInfo p_playback_info, bool p_test_only) {
-	if (!blend_points_used) {
+	if (!blend_points_used || is_contain_invalid_point) {
 		return NodeTimeInfo();
 	}
 

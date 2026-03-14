@@ -91,6 +91,9 @@ protected:
 	virtual void _animation_node_renamed(const ObjectID &p_oid, const String &p_old_name, const String &p_new_name) override;
 	virtual void _animation_node_removed(const ObjectID &p_oid, const StringName &p_node) override;
 
+	bool is_contain_invalid_point = false;
+	void _check_can_sync();
+
 #ifndef DISABLE_DEPRECATED
 	void _add_blend_point_bind_compat_110369(const Ref<AnimationRootNode> &p_node, float p_position, int p_at_index = -1);
 	static void _bind_compatibility_methods();
