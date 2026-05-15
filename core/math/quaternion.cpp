@@ -168,6 +168,13 @@ Quaternion Quaternion::slerpni(const Quaternion &p_to, real_t p_weight) const {
 			invFactor * from.w + newFactor * p_to.w);
 }
 
+Quaternion Quaternion::get_tangent(const Quaternion &p_pre_q, const Quaternion &p_q, const Quaternion &p_post_q) const {
+	Quaternion qi = p_q.inverse();
+	Quaternion ln1 = (qi * p_pre_q).log();
+	Quaternion ln2 = (qi * p_post_q).log();
+	return p_q * (-(ln1 + ln2) * 0.25).exp();
+}
+
 Quaternion Quaternion::spherical_cubic_interpolate(const Quaternion &p_b, const Quaternion &p_pre_a, const Quaternion &p_post_b, real_t p_weight) const {
 #ifdef MATH_CHECKS
 	ERR_FAIL_COND_V_MSG(!is_normalized(), Quaternion(), "The start quaternion " + operator String() + " must be normalized.");
@@ -192,30 +199,11 @@ Quaternion Quaternion::spherical_cubic_interpolate(const Quaternion &p_b, const 
 	bool flip3 = flip2 ? to_q.dot(post_q) <= 0 : std::signbit(to_q.dot(post_q));
 	post_q = flip3 ? -post_q : post_q;
 
-	// Calc by Expmap in from_q space.
-	Quaternion ln_from = Quaternion(0, 0, 0, 0);
-	Quaternion ln_to = (from_q.inverse() * to_q).log();
-	Quaternion ln_pre = (from_q.inverse() * pre_q).log();
-	Quaternion ln_post = (from_q.inverse() * post_q).log();
-	Quaternion ln = Quaternion(0, 0, 0, 0);
-	ln.x = Math::cubic_interpolate(ln_from.x, ln_to.x, ln_pre.x, ln_post.x, p_weight);
-	ln.y = Math::cubic_interpolate(ln_from.y, ln_to.y, ln_pre.y, ln_post.y, p_weight);
-	ln.z = Math::cubic_interpolate(ln_from.z, ln_to.z, ln_pre.z, ln_post.z, p_weight);
-	Quaternion q1 = from_q * ln.exp();
-
-	// Calc by Expmap in to_q space.
-	ln_from = (to_q.inverse() * from_q).log();
-	ln_to = Quaternion(0, 0, 0, 0);
-	ln_pre = (to_q.inverse() * pre_q).log();
-	ln_post = (to_q.inverse() * post_q).log();
-	ln = Quaternion(0, 0, 0, 0);
-	ln.x = Math::cubic_interpolate(ln_from.x, ln_to.x, ln_pre.x, ln_post.x, p_weight);
-	ln.y = Math::cubic_interpolate(ln_from.y, ln_to.y, ln_pre.y, ln_post.y, p_weight);
-	ln.z = Math::cubic_interpolate(ln_from.z, ln_to.z, ln_pre.z, ln_post.z, p_weight);
-	Quaternion q2 = to_q * ln.exp();
-
-	// To cancel error made by Expmap ambiguity, do blending.
-	return q1.slerp(q2, p_weight);
+	// Squad (can only be adopted in cases where the time is uniform).
+	Quaternion s1 = get_tangent(pre_q, from_q, to_q);
+	Quaternion s2 = get_tangent(from_q, to_q, post_q);
+	// No more flip, so use slerpni().
+	return from_q.slerpni(to_q, p_weight).slerpni(s1.slerpni(s2, p_weight), 2.0 * p_weight * (1.0 - p_weight));
 }
 
 Quaternion Quaternion::spherical_cubic_interpolate_in_time(const Quaternion &p_b, const Quaternion &p_pre_a, const Quaternion &p_post_b, real_t p_weight,
