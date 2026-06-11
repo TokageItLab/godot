@@ -716,6 +716,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 	String txt_sub;
 	Item *it_to = (p_line + 1 < (int)p_frame->lines.size()) ? p_frame->lines[p_line + 1].from : nullptr;
 	Item *it_prev = l.from ? l.from : current;
+	bool line_has_content = false;
 	int remaining_characters = visible_characters - l.char_offset;
 	for (Item *it = l.from; it && it != it_to; it = _get_next_item(it)) {
 		it_prev = it;
@@ -728,6 +729,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 				l.dc_color = dc->color;
 				l.dc_ol_size = dc->ol_size;
 				l.dc_ol_color = dc->ol_color;
+				line_has_content = true;
 			} break;
 			case ITEM_NEWLINE: {
 				Ref<Font> font = p_base_font;
@@ -746,8 +748,10 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 				if (font_size_it && font_size_it->font_size > 0) {
 					font_size = font_size_it->font_size;
 				}
-				l.text_buf->add_string(String::chr(0x200B), font, font_size, String(), it->rid);
-				txt += "\n";
+				if (!line_has_content) {
+					l.text_buf->add_string(String::chr(0x200B), font, font_size, String(), it->rid);
+					txt += String::chr(0x200B);
+				}
 				l.char_count++;
 				remaining_characters--;
 				it_prev = nullptr;
@@ -783,6 +787,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 
 				txt += tx;
 				l.char_count += tx.length();
+				line_has_content = !tx.is_empty();
 			} break;
 			case ITEM_IMAGE: {
 				ItemImage *img = static_cast<ItemImage *>(it);
@@ -795,6 +800,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 				txt += String::chr(0xfffc);
 				l.char_count++;
 				remaining_characters--;
+				line_has_content = true;
 			} break;
 			case ITEM_TABLE: {
 				ItemTable *table = static_cast<ItemTable *>(it);
@@ -872,6 +878,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 					l.text_buf->add_object(it->rid, Size2(table->total_width, table->total_height), table->inline_align, t_char_count);
 				}
 				txt += String::chr(0xfffc).repeat(t_char_count);
+				line_has_content = true;
 			} break;
 			default:
 				break;
@@ -879,7 +886,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 	}
 
 	// Add zero-width space to the end if line did not end with /n to ensure uniform height.
-	if (it_prev) {
+	if (it_prev && !line_has_content && !ignore_end_line_break) {
 		Ref<Font> font = p_base_font;
 		int font_size = p_base_font_size;
 
@@ -897,7 +904,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 			font_size = font_size_it->font_size;
 		}
 		l.text_buf->add_string(String::chr(0x200B), font, font_size, String(), it_prev->rid);
-		txt += "\n";
+		txt += String::chr(0x200B);
 	}
 
 	// Apply BiDi override.
@@ -5372,6 +5379,24 @@ bool RichTextLabel::is_fit_content_enabled() const {
 	return fit_content;
 }
 
+void RichTextLabel::set_ignore_end_line_break(bool p_enabled) {
+	if (ignore_end_line_break == p_enabled) {
+		return;
+	}
+
+	_stop_thread();
+
+	ignore_end_line_break = p_enabled;
+	main->first_invalid_line.store(0);
+	_invalidate_accessibility();
+	queue_accessibility_update();
+	queue_redraw();
+}
+
+bool RichTextLabel::is_ignore_end_line_break_enabled() const {
+	return ignore_end_line_break;
+}
+
 void RichTextLabel::set_meta_underline(bool p_underline) {
 	if (underline_meta == p_underline) {
 		return;
@@ -7920,6 +7945,9 @@ void RichTextLabel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_fit_content", "enabled"), &RichTextLabel::set_fit_content);
 	ClassDB::bind_method(D_METHOD("is_fit_content_enabled"), &RichTextLabel::is_fit_content_enabled);
 
+	ClassDB::bind_method(D_METHOD("set_ignore_end_line_break", "enabled"), &RichTextLabel::set_ignore_end_line_break);
+	ClassDB::bind_method(D_METHOD("is_ignore_end_line_break_enabled"), &RichTextLabel::is_ignore_end_line_break_enabled);
+
 	ClassDB::bind_method(D_METHOD("set_selection_enabled", "enabled"), &RichTextLabel::set_selection_enabled);
 	ClassDB::bind_method(D_METHOD("is_selection_enabled"), &RichTextLabel::is_selection_enabled);
 
@@ -8009,6 +8037,7 @@ void RichTextLabel::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "text", PROPERTY_HINT_MULTILINE_TEXT), "set_text", "get_text");
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "fit_content"), "set_fit_content", "is_fit_content_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "ignore_end_line_break"), "set_ignore_end_line_break", "is_ignore_end_line_break_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scroll_active"), "set_scroll_active", "is_scroll_active");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scroll_following"), "set_scroll_follow", "is_scroll_following");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scroll_following_visible_characters"), "set_scroll_follow_visible_characters", "is_scroll_following_visible_characters");

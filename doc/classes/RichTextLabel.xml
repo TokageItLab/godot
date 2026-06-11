@@ -748,6 +748,10 @@
 		<member name="horizontal_alignment" type="int" setter="set_horizontal_alignment" getter="get_horizontal_alignment" enum="HorizontalAlignment" default="0">
 			Controls the text's horizontal alignment. Supports left, center, right, and fill (also known as justify).
 		</member>
+		<member name="ignore_end_line_break" type="bool" setter="set_ignore_end_line_break" getter="is_ignore_end_line_break_enabled" default="true">
+			If [code]true[/code], the last paragraph is only laid out when it has content. A trailing newline (such as a [code]"\n"[/code] at the end of [member text]) therefore does not add an empty paragraph at the end, and empty [member text] takes up no height.
+			If [code]false[/code], the trailing empty paragraph is laid out like any other paragraph, taking up the height of one line.
+		</member>
 		<member name="justification_flags" type="int" setter="set_justification_flags" getter="get_justification_flags" enum="TextServer.JustificationFlag" is_bitfield="true" default="163">
 			Line fill alignment rules.
 		</member>

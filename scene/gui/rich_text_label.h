@@ -764,6 +764,7 @@ private:
 	RID accessibility_scroll_element;
 
 	bool fit_content = false;
+	bool ignore_end_line_break = true;
 
 	struct ThemeCache {
 		Ref<StyleBox> normal_style;
@@ -900,6 +901,9 @@ public:
 
 	void set_fit_content(bool p_enabled);
 	bool is_fit_content_enabled() const;
+
+	void set_ignore_end_line_break(bool p_enabled);
+	bool is_ignore_end_line_break_enabled() const;
 
 	bool search(const String &p_string, bool p_from_selection = false, bool p_search_previous = false);
 
