@@ -138,6 +138,16 @@ TEST_CASE("[Vector3] Interpolation methods") {
 	CHECK_MESSAGE(
 			vector1.cubic_interpolate(vector2, Vector3(), Vector3(7, 7, 7), 1.0 / 3.0).is_equal_approx(Vector3(1.851851940155029297, 2.962963104248046875, 4.074074268341064453)),
 			"Vector3 cubic_interpolate should work as expected.");
+	// x: y = x^2 samples, y: flat section followed by a rise (no overshoot), z: unit step (smoothstep).
+	CHECK_MESSAGE(
+			Vector3(0, 0, 0).makima_interpolate(Vector3(1, 0, 1), Vector3(1, 0, 0), Vector3(4, 1, 1), Vector3(4, 0, 0), Vector3(9, 2, 1), 0.5).is_equal_approx(Vector3(0.3125, 0, 0.5)),
+			"Vector3 makima_interpolate should work as expected.");
+	CHECK_MESSAGE(
+			Vector3(0, 0, 0).makima_interpolate(Vector3(1, 0, 1), Vector3(1, 0, 0), Vector3(4, 1, 1), Vector3(4, 0, 0), Vector3(9, 2, 1), 0.25).is_equal_approx(Vector3(0.0859375, 0, 0.15625)),
+			"Vector3 makima_interpolate should work as expected.");
+	CHECK_MESSAGE(
+			Vector3(0, 0, 0).makima_interpolate_in_time(Vector3(1, 0, 1), Vector3(1, 0, 0), Vector3(4, 1, 1), Vector3(4, 0, 0), Vector3(9, 2, 1), 0.5, 1, -1, 2, -2, 3).is_equal_approx(Vector3(0.3125, 0, 0.5)),
+			"Vector3 makima_interpolate_in_time should work as expected.");
 	CHECK_MESSAGE(
 			Vector3(1, 0, 0).move_toward(Vector3(10, 0, 0), 3) == Vector3(4, 0, 0),
 			"Vector3 move_toward should work as expected.");

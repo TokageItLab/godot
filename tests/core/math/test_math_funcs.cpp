@@ -664,6 +664,80 @@ TEST_CASE_TEMPLATE("[Math] cubic_interpolate_angle_in_time", T, float, double) {
 	CHECK(Math::cubic_interpolate_angle_in_time((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)1.0, (T)0.5, (T)0.0, (T)1.0) == doctest::Approx((T)Math::PI * (5.0 / 6.0)));
 }
 
+TEST_CASE_TEMPLATE("[Math] makima_interpolate", T, float, double) {
+	// Flat section followed by a rise stays exactly flat (cubic interpolation would overshoot below zero here).
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)0.0, (T)0.0, (T)1.0, (T)0.0, (T)2.0, (T)0.25), (T)0.0));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)0.0, (T)0.0, (T)1.0, (T)0.0, (T)2.0, (T)0.5), (T)0.0));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)0.0, (T)0.0, (T)1.0, (T)0.0, (T)2.0, (T)0.75), (T)0.0));
+
+	// Linear data is reproduced exactly.
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.2, (T)0.8, (T)-0.4, (T)1.4, (T)-1.0, (T)2.0, (T)0.0), (T)0.2));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.2, (T)0.8, (T)-0.4, (T)1.4, (T)-1.0, (T)2.0, (T)0.25), (T)0.35));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.2, (T)0.8, (T)-0.4, (T)1.4, (T)-1.0, (T)2.0, (T)0.5), (T)0.5));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.2, (T)0.8, (T)-0.4, (T)1.4, (T)-1.0, (T)2.0, (T)0.75), (T)0.65));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.2, (T)0.8, (T)-0.4, (T)1.4, (T)-1.0, (T)2.0, (T)1.0), (T)0.8));
+
+	// y = x^2 sampled at x = -2..3, interpolated on [0, 1]: tangents are 0 and 1.5, so the result is 1.5w^2 - 0.5w^3.
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.0), (T)0.0));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.25), (T)0.0859375));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.5), (T)0.3125));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.75), (T)0.6328125));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)1.0), (T)1.0));
+
+	// Unit step: both tangents are zero, so the result is the smoothstep 3w^2 - 2w^3 without overshoot.
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)0.0, (T)1.0, (T)0.0, (T)1.0, (T)0.25), (T)0.15625));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)0.0, (T)1.0, (T)0.0, (T)1.0, (T)0.5), (T)0.5));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate((T)0.0, (T)1.0, (T)0.0, (T)1.0, (T)0.0, (T)1.0, (T)0.75), (T)0.84375));
+}
+
+TEST_CASE_TEMPLATE("[Math] makima_interpolate_angle", T, float, double) {
+	// Symmetric rotations around PI / 2.
+	CHECK(Math::makima_interpolate_angle((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.0) == doctest::Approx((T)Math::PI * (1.0 / 6.0)));
+	CHECK(Math::makima_interpolate_angle((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.5) == doctest::Approx((T)Math::PI / 2.0));
+	CHECK(Math::makima_interpolate_angle((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)1.0) == doctest::Approx((T)Math::PI * (5.0 / 6.0)));
+	// The unwrapping is a no-op when there is nothing to unwrap.
+	CHECK(Math::makima_interpolate_angle((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.25) == doctest::Approx(Math::makima_interpolate((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.25)));
+	// Linear rotation crossing the TAU boundary, with the keys wrapped by different amounts, takes the shortest path.
+	CHECK(Math::makima_interpolate_angle((T)(Math::TAU - 0.1), (T)0.1, (T)(Math::TAU - 0.3), (T)(Math::TAU + 0.3), (T)(2.0 * Math::TAU - 0.5), (T)(0.5 - Math::TAU), (T)0.25) == doctest::Approx((T)(Math::TAU - 0.05)));
+	CHECK(Math::makima_interpolate_angle((T)(Math::TAU - 0.1), (T)0.1, (T)(Math::TAU - 0.3), (T)(Math::TAU + 0.3), (T)(2.0 * Math::TAU - 0.5), (T)(0.5 - Math::TAU), (T)0.5) == doctest::Approx((T)Math::TAU));
+	CHECK(Math::makima_interpolate_angle((T)(Math::TAU - 0.1), (T)0.1, (T)(Math::TAU - 0.3), (T)(Math::TAU + 0.3), (T)(2.0 * Math::TAU - 0.5), (T)(0.5 - Math::TAU), (T)0.75) == doctest::Approx((T)(Math::TAU + 0.05)));
+}
+
+TEST_CASE_TEMPLATE("[Math] makima_interpolate_in_time", T, float, double) {
+	// Uniform time values give the same results as makima_interpolate().
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.25, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0), (T)0.0859375));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.5, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0), (T)0.3125));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)1.0, (T)4.0, (T)4.0, (T)9.0, (T)0.75, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0), (T)0.6328125));
+
+	// Only two distinct keys (the outer ones are duplicated with zero time deltas): exactly linear.
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.0, (T)0.5, (T)0.0, (T)0.5, (T)0.0, (T)0.5), (T)0.2));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.25, (T)0.5, (T)0.0, (T)0.5, (T)0.0, (T)0.5), (T)0.35));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.5, (T)0.5, (T)0.0, (T)0.5, (T)0.0, (T)0.5), (T)0.5));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.75, (T)0.5, (T)0.0, (T)0.5, (T)0.0, (T)0.5), (T)0.65));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)0.2, (T)0.8, (T)1.0, (T)0.5, (T)0.0, (T)0.5, (T)0.0, (T)0.5), (T)0.8));
+
+	// Three keys (0, 0), (1, 1), (2, 3) with the start edge duplicated: uses the end-point extrapolation of the Akima method.
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)0.0, (T)3.0, (T)0.0, (T)3.0, (T)0.25, (T)1.0, (T)0.0, (T)2.0, (T)0.0, (T)2.0), (T)0.148046875));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)0.0, (T)3.0, (T)0.0, (T)3.0, (T)0.5, (T)1.0, (T)0.0, (T)2.0, (T)0.0, (T)2.0), (T)0.384375));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)0.0, (T)3.0, (T)0.0, (T)3.0, (T)0.75, (T)1.0, (T)0.0, (T)2.0, (T)0.0, (T)2.0), (T)0.678515625));
+	// Negating all the time values (as backward playback does) gives the same results.
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)0.0, (T)3.0, (T)0.0, (T)3.0, (T)0.25, (T)-1.0, (T)0.0, (T)-2.0, (T)0.0, (T)-2.0), (T)0.148046875));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)0.0, (T)3.0, (T)0.0, (T)3.0, (T)0.5, (T)-1.0, (T)0.0, (T)-2.0, (T)0.0, (T)-2.0), (T)0.384375));
+	static_assert(Math::is_equal_approx(Math::makima_interpolate_in_time((T)0.0, (T)1.0, (T)0.0, (T)3.0, (T)0.0, (T)3.0, (T)0.75, (T)-1.0, (T)0.0, (T)-2.0, (T)0.0, (T)-2.0), (T)0.678515625));
+}
+
+TEST_CASE_TEMPLATE("[Math] makima_interpolate_angle_in_time", T, float, double) {
+	// Uniform time values give the same results as makima_interpolate_angle().
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.0, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0) == doctest::Approx((T)Math::PI * (1.0 / 6.0)));
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.25, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0) == doctest::Approx(Math::makima_interpolate_angle((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.25)));
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)0.5, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0) == doctest::Approx((T)Math::PI / 2.0));
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::PI * (1.0 / 6.0)), (T)(Math::PI * (5.0 / 6.0)), (T)0.0, (T)Math::PI, (T)(Math::PI * (-1.0 / 6.0)), (T)(Math::PI * (7.0 / 6.0)), (T)1.0, (T)1.0, (T)-1.0, (T)2.0, (T)-2.0, (T)3.0) == doctest::Approx((T)Math::PI * (5.0 / 6.0)));
+	// Linear rotation (0.2 rad/s) with non-uniform time values crossing the TAU boundary, with the keys wrapped by different amounts.
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::TAU - 0.1), (T)0.0, (T)(Math::TAU - 0.15), (T)(Math::TAU + 0.1), (T)(2.0 * Math::TAU - 0.25), (T)(0.2 - Math::TAU), (T)0.25, (T)0.5, (T)-0.25, (T)1.0, (T)-0.75, (T)1.5) == doctest::Approx((T)(Math::TAU - 0.075)));
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::TAU - 0.1), (T)0.0, (T)(Math::TAU - 0.15), (T)(Math::TAU + 0.1), (T)(2.0 * Math::TAU - 0.25), (T)(0.2 - Math::TAU), (T)0.5, (T)0.5, (T)-0.25, (T)1.0, (T)-0.75, (T)1.5) == doctest::Approx((T)(Math::TAU - 0.05)));
+	CHECK(Math::makima_interpolate_angle_in_time((T)(Math::TAU - 0.1), (T)0.0, (T)(Math::TAU - 0.15), (T)(Math::TAU + 0.1), (T)(2.0 * Math::TAU - 0.25), (T)(0.2 - Math::TAU), (T)0.75, (T)0.5, (T)-0.25, (T)1.0, (T)-0.75, (T)1.5) == doctest::Approx((T)(Math::TAU - 0.025)));
+}
+
 TEST_CASE_TEMPLATE("[Math] bezier_interpolate", T, float, double) {
 	static_assert(Math::is_equal_approx(Math::bezier_interpolate((T)0.0, (T)0.2, (T)0.8, (T)1.0, (T)0.0), (T)0.0));
 	static_assert(Math::is_equal_approx(Math::bezier_interpolate((T)0.0, (T)0.2, (T)0.8, (T)1.0, (T)0.25), (T)0.2125));

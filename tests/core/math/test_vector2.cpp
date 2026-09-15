@@ -124,6 +124,16 @@ TEST_CASE("[Vector2] Interpolation methods") {
 	CHECK_MESSAGE(
 			vector1.cubic_interpolate(vector2, Vector2(), Vector2(7, 7), 1.0 / 3.0).is_equal_approx(Vector2(1.851851940155029297, 2.962963104248046875)),
 			"Vector2 cubic_interpolate should work as expected.");
+	// x: y = x^2 samples, y: flat section followed by a rise (no overshoot).
+	CHECK_MESSAGE(
+			Vector2(0, 0).makima_interpolate(Vector2(1, 0), Vector2(1, 0), Vector2(4, 1), Vector2(4, 0), Vector2(9, 2), 0.5).is_equal_approx(Vector2(0.3125, 0)),
+			"Vector2 makima_interpolate should work as expected.");
+	CHECK_MESSAGE(
+			Vector2(0, 0).makima_interpolate(Vector2(1, 0), Vector2(1, 0), Vector2(4, 1), Vector2(4, 0), Vector2(9, 2), 0.25).is_equal_approx(Vector2(0.0859375, 0)),
+			"Vector2 makima_interpolate should work as expected.");
+	CHECK_MESSAGE(
+			Vector2(0, 0).makima_interpolate_in_time(Vector2(1, 0), Vector2(1, 0), Vector2(4, 1), Vector2(4, 0), Vector2(9, 2), 0.5, 1, -1, 2, -2, 3).is_equal_approx(Vector2(0.3125, 0)),
+			"Vector2 makima_interpolate_in_time should work as expected.");
 	CHECK_MESSAGE(
 			Vector2(1, 0).move_toward(Vector2(10, 0), 3) == Vector2(4, 0),
 			"Vector2 move_toward should work as expected.");

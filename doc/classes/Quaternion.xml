@@ -210,6 +210,37 @@
 				It can perform smoother interpolation than [method spherical_cubic_interpolate] by the time values.
 			</description>
 		</method>
+		<method name="spherical_makima_interpolate" qualifiers="const">
+			<return type="Quaternion" />
+			<param index="0" name="b" type="Quaternion" />
+			<param index="1" name="pre_a" type="Quaternion" />
+			<param index="2" name="post_b" type="Quaternion" />
+			<param index="3" name="pre_pre_a" type="Quaternion" />
+			<param index="4" name="post_post_b" type="Quaternion" />
+			<param index="5" name="weight" type="float" />
+			<description>
+				Performs a spherical Modified Akima interpolation between quaternions [param pre_pre_a], [param pre_a], this quaternion, [param b], [param post_b] and [param post_post_b], by the given amount [param weight].
+				Unlike [method spherical_cubic_interpolate], the resulting curve does not overshoot around flat sections or sudden changes of the rotations.
+			</description>
+		</method>
+		<method name="spherical_makima_interpolate_in_time" qualifiers="const">
+			<return type="Quaternion" />
+			<param index="0" name="b" type="Quaternion" />
+			<param index="1" name="pre_a" type="Quaternion" />
+			<param index="2" name="post_b" type="Quaternion" />
+			<param index="3" name="pre_pre_a" type="Quaternion" />
+			<param index="4" name="post_post_b" type="Quaternion" />
+			<param index="5" name="weight" type="float" />
+			<param index="6" name="b_t" type="float" />
+			<param index="7" name="pre_a_t" type="float" />
+			<param index="8" name="post_b_t" type="float" />
+			<param index="9" name="pre_pre_a_t" type="float" />
+			<param index="10" name="post_post_b_t" type="float" />
+			<description>
+				Performs a spherical Modified Akima interpolation between quaternions [param pre_pre_a], [param pre_a], this quaternion, [param b], [param post_b] and [param post_post_b], by the given amount [param weight].
+				It can perform smoother interpolation than [method spherical_makima_interpolate] by the time values.
+			</description>
+		</method>
 	</methods>
 	<members>
 		<member name="w" type="float" setter="" getter="" default="1.0">

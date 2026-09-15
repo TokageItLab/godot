@@ -80,6 +80,16 @@ TEST_CASE("[Vector4] Interpolation methods") {
 	CHECK_MESSAGE(
 			vector1.cubic_interpolate(vector2, Vector4(), Vector4(7, 7, 7, 7), 1.0 / 3.0).is_equal_approx(Vector4(1.851851940155029297, 2.962963104248046875, 4.074074268341064453, 5.185185185185)),
 			"Vector4 cubic_interpolate should work as expected.");
+	// x: y = x^2 samples, y: flat section followed by a rise (no overshoot), z: unit step (smoothstep), w: linear.
+	CHECK_MESSAGE(
+			Vector4(0, 0, 0, 0.2).makima_interpolate(Vector4(1, 0, 1, 0.8), Vector4(1, 0, 0, -0.4), Vector4(4, 1, 1, 1.4), Vector4(4, 0, 0, -1.0), Vector4(9, 2, 1, 2.0), 0.5).is_equal_approx(Vector4(0.3125, 0, 0.5, 0.5)),
+			"Vector4 makima_interpolate should work as expected.");
+	CHECK_MESSAGE(
+			Vector4(0, 0, 0, 0.2).makima_interpolate(Vector4(1, 0, 1, 0.8), Vector4(1, 0, 0, -0.4), Vector4(4, 1, 1, 1.4), Vector4(4, 0, 0, -1.0), Vector4(9, 2, 1, 2.0), 0.25).is_equal_approx(Vector4(0.0859375, 0, 0.15625, 0.35)),
+			"Vector4 makima_interpolate should work as expected.");
+	CHECK_MESSAGE(
+			Vector4(0, 0, 0, 0.2).makima_interpolate_in_time(Vector4(1, 0, 1, 0.8), Vector4(1, 0, 0, -0.4), Vector4(4, 1, 1, 1.4), Vector4(4, 0, 0, -1.0), Vector4(9, 2, 1, 2.0), 0.5, 1, -1, 2, -2, 3).is_equal_approx(Vector4(0.3125, 0, 0.5, 0.5)),
+			"Vector4 makima_interpolate_in_time should work as expected.");
 }
 
 TEST_CASE("[Vector4] Length methods") {

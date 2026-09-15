@@ -278,6 +278,138 @@ TEST_CASE("[Animation] Create blend shape track") {
 	ERR_PRINT_ON;
 }
 
+TEST_CASE("[Animation] Makima interpolation") {
+	Ref<Animation> animation = memnew(Animation);
+	animation->set_length(1.0);
+
+	SUBCASE("Value track") {
+		// A flat section followed by a rise. Unlike cubic interpolation, makima must not dip below zero in the flat section.
+		const int track_index = animation->add_track(Animation::TYPE_VALUE);
+		animation->track_set_path(track_index, NodePath("Enemy:offset"));
+		animation->track_insert_key(track_index, 0.0, 0.0);
+		animation->track_insert_key(track_index, 0.25, 0.0);
+		animation->track_insert_key(track_index, 0.5, 0.0);
+		animation->track_insert_key(track_index, 0.75, 1.0);
+		animation->track_insert_key(track_index, 1.0, 2.0);
+		animation->track_set_interpolation_type(track_index, Animation::INTERPOLATION_MAKIMA);
+		CHECK(animation->track_get_interpolation_type(track_index) == Animation::INTERPOLATION_MAKIMA);
+
+		// Keys are reproduced exactly.
+		CHECK(float(animation->value_track_interpolate(track_index, 0.0)) == doctest::Approx(0.0));
+		CHECK(float(animation->value_track_interpolate(track_index, 0.5)) == doctest::Approx(0.0));
+		CHECK(float(animation->value_track_interpolate(track_index, 0.75)) == doctest::Approx(1.0));
+		CHECK(float(animation->value_track_interpolate(track_index, 1.0)) == doctest::Approx(2.0));
+		// No overshoot in the flat section.
+		CHECK(float(animation->value_track_interpolate(track_index, 0.125)) == doctest::Approx(0.0));
+		CHECK(float(animation->value_track_interpolate(track_index, 0.375)) == doctest::Approx(0.0));
+		// The rise stays between the keys (the end key is duplicated by clamping and extrapolated).
+		CHECK(float(animation->value_track_interpolate(track_index, 0.625)) == doctest::Approx(0.375));
+		const float rising = animation->value_track_interpolate(track_index, 0.875);
+		CHECK(rising > 1.0);
+		CHECK(rising < 2.0);
+		// Outside of the animation, the edge keys are held.
+		CHECK(float(animation->value_track_interpolate(track_index, -0.5)) == doctest::Approx(0.0));
+		CHECK(float(animation->value_track_interpolate(track_index, 1.5)) == doctest::Approx(2.0));
+	}
+
+	SUBCASE("Value track with angle") {
+		const int track_index = animation->add_track(Animation::TYPE_VALUE);
+		animation->track_set_path(track_index, NodePath("Enemy:rotation"));
+		animation->track_insert_key(track_index, 0.0, 0.1);
+		animation->track_insert_key(track_index, 0.5, Math::TAU - 0.1);
+		animation->track_insert_key(track_index, 1.0, 0.1);
+		animation->track_set_interpolation_type(track_index, Animation::INTERPOLATION_MAKIMA_ANGLE);
+
+		// The rotation takes the shortest path through 0 and the result is normalized into [0, TAU).
+		for (double time = 0.0; time <= 1.0; time += 0.125) {
+			const float value = animation->value_track_interpolate(track_index, time);
+			CHECK(value >= 0.0);
+			CHECK(value < Math::TAU);
+			CHECK(Math::abs(Math::angle_difference(0.0f, value)) <= 0.1 + CMP_EPSILON);
+		}
+		// Keys are reproduced exactly.
+		CHECK(float(animation->value_track_interpolate(track_index, 0.0)) == doctest::Approx(0.1));
+		CHECK(float(animation->value_track_interpolate(track_index, 0.5)) == doctest::Approx(Math::TAU - 0.1));
+	}
+
+	SUBCASE("3D position track") {
+		const int track_index = animation->add_track(Animation::TYPE_POSITION_3D);
+		animation->track_set_path(track_index, NodePath("Enemy:position"));
+		animation->position_track_insert_key(track_index, 0.0, Vector3(0, 0, 0));
+		animation->position_track_insert_key(track_index, 0.25, Vector3(0, 0, 0));
+		animation->position_track_insert_key(track_index, 0.5, Vector3(0, 0, 0));
+		animation->position_track_insert_key(track_index, 0.75, Vector3(1, 2, 3));
+		animation->position_track_insert_key(track_index, 1.0, Vector3(2, 4, 6));
+		animation->track_set_interpolation_type(track_index, Animation::INTERPOLATION_MAKIMA);
+
+		Vector3 r_interpolation;
+		CHECK(animation->try_position_track_interpolate(track_index, 0.125, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Vector3(0, 0, 0)));
+		CHECK(animation->try_position_track_interpolate(track_index, 0.375, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Vector3(0, 0, 0)));
+		CHECK(animation->try_position_track_interpolate(track_index, 0.625, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Vector3(0.375, 0.75, 1.125)));
+		CHECK(animation->try_position_track_interpolate(track_index, 0.75, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Vector3(1, 2, 3)));
+	}
+
+	SUBCASE("3D rotation track") {
+		const int track_index = animation->add_track(Animation::TYPE_ROTATION_3D);
+		animation->track_set_path(track_index, NodePath("Enemy:rotation"));
+		animation->rotation_track_insert_key(track_index, 0.0, Quaternion(Vector3(0, 1, 0), 0.0));
+		animation->rotation_track_insert_key(track_index, 0.25, Quaternion(Vector3(0, 1, 0), 0.0));
+		animation->rotation_track_insert_key(track_index, 0.5, Quaternion(Vector3(0, 1, 0), 0.0));
+		animation->rotation_track_insert_key(track_index, 0.75, Quaternion(Vector3(0, 1, 0), 1.0));
+		animation->rotation_track_insert_key(track_index, 1.0, Quaternion(Vector3(0, 1, 0), 2.0));
+		animation->track_set_interpolation_type(track_index, Animation::INTERPOLATION_MAKIMA);
+
+		Quaternion r_interpolation;
+		// No rotation in the flat section.
+		CHECK(animation->try_rotation_track_interpolate(track_index, 0.125, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Quaternion()));
+		CHECK(animation->try_rotation_track_interpolate(track_index, 0.375, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Quaternion()));
+		// Keys are reproduced and the result is normalized.
+		CHECK(animation->try_rotation_track_interpolate(track_index, 0.75, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_equal_approx(Quaternion(Vector3(0, 1, 0), 1.0)));
+		CHECK(animation->try_rotation_track_interpolate(track_index, 0.625, &r_interpolation) == OK);
+		CHECK(r_interpolation.is_normalized());
+		CHECK(r_interpolation.get_axis().is_equal_approx(Vector3(0, 1, 0)));
+		CHECK(r_interpolation.get_angle() > 0.0);
+		CHECK(r_interpolation.get_angle() < 1.0);
+	}
+
+	SUBCASE("Loops with few keys") {
+		const int track_index = animation->add_track(Animation::TYPE_VALUE);
+		animation->track_set_path(track_index, NodePath("Enemy:offset"));
+		animation->track_insert_key(track_index, 0.0, 0.0);
+		animation->track_insert_key(track_index, 0.5, 1.0);
+		animation->track_set_interpolation_type(track_index, Animation::INTERPOLATION_MAKIMA);
+		animation->track_set_interpolation_loop_wrap(track_index, true);
+
+		const Animation::LoopMode loop_modes[3] = { Animation::LOOP_NONE, Animation::LOOP_LINEAR, Animation::LOOP_PINGPONG };
+		for (int keys = 2; keys <= 3; keys++) {
+			if (keys == 3) {
+				animation->track_insert_key(track_index, 1.0, 0.5);
+			}
+			for (int i = 0; i < 3; i++) {
+				animation->set_loop_mode(loop_modes[i]);
+				// Wrapping around more than once with so few keys must be handled without crashing or producing NaN.
+				for (double time = -0.5; time <= 1.5; time += 0.0625) {
+					const float value = animation->value_track_interpolate(track_index, time);
+					CHECK(Math::is_finite(value));
+				}
+				// Keys are reproduced exactly.
+				CHECK(float(animation->value_track_interpolate(track_index, 0.0)) == doctest::Approx(0.0));
+				CHECK(float(animation->value_track_interpolate(track_index, 0.5)) == doctest::Approx(1.0));
+				if (keys == 3) {
+					CHECK(float(animation->value_track_interpolate(track_index, 1.0)) == doctest::Approx(0.5));
+				}
+			}
+		}
+	}
+}
+
 TEST_CASE("[Animation] Create Bezier track") {
 	Ref<Animation> animation = memnew(Animation);
 	const int track_index = animation->add_track(Animation::TYPE_BEZIER);
