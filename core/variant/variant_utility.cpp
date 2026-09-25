@@ -529,6 +529,24 @@ double VariantUtilityFunctions::cubic_interpolate_angle_in_time(double from, dou
 	return Math::cubic_interpolate_angle_in_time(from, to, pre, post, weight, to_t, pre_t, post_t);
 }
 
+double VariantUtilityFunctions::makima_interpolate(double from, double to, double pre, double post, double pre_pre, double post_post, double weight) {
+	return Math::makima_interpolate(from, to, pre, post, pre_pre, post_post, weight);
+}
+
+double VariantUtilityFunctions::makima_interpolate_angle(double from, double to, double pre, double post, double pre_pre, double post_post, double weight) {
+	return Math::makima_interpolate_angle(from, to, pre, post, pre_pre, post_post, weight);
+}
+
+double VariantUtilityFunctions::makima_interpolate_in_time(double from, double to, double pre, double post, double pre_pre, double post_post, double weight,
+		double to_t, double pre_t, double post_t, double pre_pre_t, double post_post_t) {
+	return Math::makima_interpolate_in_time(from, to, pre, post, pre_pre, post_post, weight, to_t, pre_t, post_t, pre_pre_t, post_post_t);
+}
+
+double VariantUtilityFunctions::makima_interpolate_angle_in_time(double from, double to, double pre, double post, double pre_pre, double post_post, double weight,
+		double to_t, double pre_t, double post_t, double pre_pre_t, double post_post_t) {
+	return Math::makima_interpolate_angle_in_time(from, to, pre, post, pre_pre, post_post, weight, to_t, pre_t, post_t, pre_pre_t, post_post_t);
+}
+
 double VariantUtilityFunctions::bezier_interpolate(double p_start, double p_control_1, double p_control_2, double p_end, double p_t) {
 	return Math::bezier_interpolate(p_start, p_control_1, p_control_2, p_end, p_t);
 }
@@ -1696,6 +1714,10 @@ void Variant::_register_variant_utility_functions() {
 	FUNCBINDR(cubic_interpolate_angle, sarray("from", "to", "pre", "post", "weight"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(cubic_interpolate_in_time, sarray("from", "to", "pre", "post", "weight", "to_t", "pre_t", "post_t"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(cubic_interpolate_angle_in_time, sarray("from", "to", "pre", "post", "weight", "to_t", "pre_t", "post_t"), Variant::UTILITY_FUNC_TYPE_MATH);
+	FUNCBINDR(makima_interpolate, sarray("from", "to", "pre", "post", "pre_pre", "post_post", "weight"), Variant::UTILITY_FUNC_TYPE_MATH);
+	FUNCBINDR(makima_interpolate_angle, sarray("from", "to", "pre", "post", "pre_pre", "post_post", "weight"), Variant::UTILITY_FUNC_TYPE_MATH);
+	FUNCBINDR(makima_interpolate_in_time, sarray("from", "to", "pre", "post", "pre_pre", "post_post", "weight", "to_t", "pre_t", "post_t", "pre_pre_t", "post_post_t"), Variant::UTILITY_FUNC_TYPE_MATH);
+	FUNCBINDR(makima_interpolate_angle_in_time, sarray("from", "to", "pre", "post", "pre_pre", "post_post", "weight", "to_t", "pre_t", "post_t", "pre_pre_t", "post_post_t"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(bezier_interpolate, sarray("start", "control_1", "control_2", "end", "t"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(bezier_derivative, sarray("start", "control_1", "control_2", "end", "t"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(angle_difference, sarray("from", "to"), Variant::UTILITY_FUNC_TYPE_MATH);
